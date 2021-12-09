@@ -1,5 +1,5 @@
 # action-generate-luacheckrc
-GitHub action to generate up-to-date .luacheckrc for WoW addons.
+GitHub action to generate up-to-date .luacheckrc for WoW addons from [Ketho/BlizzardInterfaceResources](https://github.com/Ketho/BlizzardInterfaceResources) and [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source).
 
 ## Usage
 
