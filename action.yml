@@ -1,0 +1,51 @@
+name: 'Generate .luacheckrc'
+description: 'Generate .luacheckrc for WoW addon'
+inputs:
+  target-path:
+    description: 'Path to .luacheckrc'
+    required: true
+    default: '.luacheckrc'
+  header-path:
+    description: 'Path to .luacheckrc header template'
+    required: false
+    default: '.luacheckrc_header'
+runs:
+  using: "composite"
+  steps:
+    - name: Clone Gethe/wow-ui-source
+      uses: actions/checkout@v2
+      with:
+        repository: Gethe/wow-ui-source
+        path: .wow/wow-ui-source
+        fetch-depth: 0
+
+    - name: Clone Ketho/BlizzardInterfaceResources
+      uses: actions/checkout@v2
+      with:
+        repository: Ketho/BlizzardInterfaceResources
+        path: .wow/BlizzardInterfaceResources
+        fetch-depth: 0
+
+    - name: Install Lua 5.1.5
+      uses: leafo/gh-actions-lua@v8.0.0
+      with:
+        luaVersion: "5.1.5"
+
+    - name: Install Luarocks
+      uses: leafo/gh-actions-luarocks@v4.0.0
+
+    - name: Install LuaFileSystem
+      run: luarocks install luafilesystem
+      shell: bash
+
+    - name: Parse globals from wow-ui-source
+      run: lua $GITHUB_ACTION_PATH/parse_global.lua
+      shell: bash
+
+    - name: Generate .luacheckrc
+      run: lua $GITHUB_ACTION_PATH/generate.lua ${{ inputs.target-path }} ${{ inputs.header-path }}
+      shell: bash
+
+    - name: Clean up
+      run: rm -rf .install .lua .luarocks .wow
+      shell: bash
