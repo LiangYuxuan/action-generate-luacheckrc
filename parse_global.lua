@@ -41,7 +41,6 @@ local function findAllGlobals(output, luac, path, file)
 
     for line in string.gmatch(content, '[^\r\n]+') do
         if string.match(line, 'SETGLOBAL\t') and not string.match(line, 'OOB_MSGTYPE_.+') then
-            print(line)
             local variable = string.match(line, '\t; (.+)%s*')
             output[variable] = true
         end
