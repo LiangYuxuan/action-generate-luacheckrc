@@ -41,7 +41,7 @@ local function findAllGlobals(output, luac, path, file)
 
     for line in string.gmatch(content, '[^\r\n]+') do
         print(line)
-        if string.match(line, 'function \t') then
+        if string.match(line, 'SETGLOBAL\t') then
             local variable = string.match(line, '\t; (.+)%s*')
             output[variable] = true
         end
