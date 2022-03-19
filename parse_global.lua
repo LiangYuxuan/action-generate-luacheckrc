@@ -41,7 +41,18 @@ local function findAllGlobals(output, luac, path, file)
     local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
 
     for line in string.gmatch(content, '[^\r\n]+') do
-        if string.match(line, 'SETGLOBAL\t') and not string.match(line, 'OOB_MSGTYPE_.+') then
+        if string.match(line, 'SETGLOBAL\t') and (
+        not string.match(line, '_.+') and
+        not string.match(line, 'OOB_MSGTYPE_.+') and
+        not string.match(line, 'register%u%l+.*') and
+        not string.match(line, 'unregister%u%l+.*') and
+        not string.match(line, 'handle%u%l+.*') and
+        not string.match(line, 'notify%u%l+.*') and
+        not string.match(line, 'get%u%l+.*') and
+        not string.match(line, 'set%u%l+.*') and
+        not string.match(line, 'mod%u%l+.*') and
+        not string.match(line, 'on%u%l+.*')
+        ) then
             local variable = string.match(line, '\t; (.+)%s*')
             output[variable] = true
         end
