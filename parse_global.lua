@@ -40,8 +40,8 @@ local function findAllGlobals(output, luac, path, file)
     local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
 
     for line in string.gmatch(content, '[^\r\n]+') do
-        print(line)
         if string.match(line, 'SETGLOBAL\t') then
+            print(line)
             local variable = string.match(line, '\t; (.+)%s*')
             output[variable] = true
         end
