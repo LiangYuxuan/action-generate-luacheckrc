@@ -1,7 +1,7 @@
 -- Config
-local UISource = './.wow/wow-ui-source/Interface/'
+local UISource = './.fg/rulesets/'
 local luacCommand = 'luac'
-local outputFile = './.wow/FrameXMLGlobals.lua'
+local outputFile = './.fg/globals.lua'
 
 -- Core
 local lfs = require('lfs')
@@ -40,10 +40,11 @@ local function findAllGlobals(output, luac, path, file)
     local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
 
     for line in string.gmatch(content, '[^\r\n]+') do
-        if string.match(line, 'SETGLOBAL\t') then
-            local variable = string.match(line, '\t; (.+)%s*')
-            output[variable] = true
-        end
+        print(line)
+        --if string.match(line, 'SETGLOBAL\t') then
+            --local variable = string.match(line, '\t; (.+)%s*')
+            --output[variable] = true
+        --end
     end
 
     return output
@@ -53,7 +54,7 @@ local fileList = findAllFiles(UISource)
 table.sort(fileList)
 
 local currentBranch = executeCapture(string.format('git -C %s branch --show-current', UISource))
-print(string.format("Currently generating FrameXML globals for %s", currentBranch))
+print(string.format("Currently generating globals for %s", currentBranch))
 
 local destFile = assert(io.open(outputFile, 'w'), "Error opening file " .. outputFile)
 
