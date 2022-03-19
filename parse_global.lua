@@ -1,7 +1,8 @@
 -- Config
-local UISource = './.fg/rulesets/'
 local luacCommand = 'luac'
-local outputFile = './.fg/globals.lua'
+local datapath = './.fg/'
+local UISource = datapath .. 'rulesets/'
+local outputFile = datapath .. 'globals.lua'
 
 -- Core
 local lfs = require('lfs')
