@@ -1,5 +1,5 @@
 name: 'Generate .luacheckrc'
-description: 'Generate .luacheckrc for WoW addon'
+description: 'Generate .luacheckrc for FantasyGrounds extensions'
 inputs:
   target-path:
     description: 'Path to .luacheckrc'
@@ -12,18 +12,53 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Clone Gethe/wow-ui-source
-      uses: actions/checkout@v2
+    - name: Clone FG-Unofficial-Developers-Guild/2E
+      uses: actions/checkout@v3
       with:
-        repository: Gethe/wow-ui-source
-        path: .wow/wow-ui-source
+        repository: FG-Unofficial-Developers-Guild/2E
+        path: .fg/rulesets/2E
         fetch-depth: 0
 
-    - name: Clone Ketho/BlizzardInterfaceResources
-      uses: actions/checkout@v2
+    - name: Clone FG-Unofficial-Developers-Guild/3.5E
+      uses: actions/checkout@v3
       with:
-        repository: Ketho/BlizzardInterfaceResources
-        path: .wow/BlizzardInterfaceResources
+        repository: FG-Unofficial-Developers-Guild/3.5E
+        path: .fg/rulesets/35E
+        fetch-depth: 0
+
+    - name: Clone FG-Unofficial-Developers-Guild/4e
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/4e
+        path: .fg/rulesets/4E
+        fetch-depth: 0
+
+    - name: Clone FG-Unofficial-Developers-Guild/5e
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/5e
+        path: .fg/rulesets/5E
+        fetch-depth: 0
+
+    - name: Clone FG-Unofficial-Developers-Guild/PFRPG
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/PFRPG
+        path: .fg/rulesets/PFRPG
+        fetch-depth: 0
+
+    - name: Clone FG-Unofficial-Developers-Guild/PFRPG2
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/PFRPG2
+        path: .fg/rulesets/PFRPG2
+        fetch-depth: 0
+
+    - name: Clone FG-Unofficial-Developers-Guild/SFRPG
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/SFRPG
+        path: .fg/rulesets/SFRPG
         fetch-depth: 0
 
     - name: Install Lua 5.1.5
@@ -38,7 +73,7 @@ runs:
       run: luarocks install luafilesystem
       shell: bash
 
-    - name: Parse globals from wow-ui-source
+    - name: Parse globals
       run: lua $GITHUB_ACTION_PATH/parse_global.lua
       shell: bash
 
@@ -47,5 +82,5 @@ runs:
       shell: bash
 
     - name: Clean up
-      run: rm -rf .install .lua .luarocks .wow
+      run: rm -rf .install .lua .luarocks .fg
       shell: bash
