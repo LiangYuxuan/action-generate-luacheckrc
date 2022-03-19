@@ -1,11 +1,26 @@
 -- Config
 local luacCommand = 'luac'
 local datapath = './.fg/'
-local UISource = datapath .. 'rulesets/'
+local rulesetspath = datapath .. 'rulesets/'
 local outputFile = datapath .. 'globals.lua'
 
 -- Core
 local lfs = require('lfs')
+
+local function findAllRulesets(path)
+  local result = {}
+
+  for file in lfs.dir(path) do
+    local fileType = lfs.attributes(path .. '/' .. file, 'mode')
+    if fileType == 'directory' then
+      if file ~= '.' and file ~= '..' then
+        table.insert(result, file)
+      end
+    end
+  end
+
+  return result
+end
 
 local function findAllFiles(path)
     local result = {}
@@ -63,9 +78,18 @@ local function findAllGlobals(output, luac, path, file)
     return output
 end
 
-local fileList = findAllFiles(UISource)
-table.sort(fileList)
+local rulesetList = findAllRulesets(rulesetspath)
+table.sort(rulesetList)
+print(rulesetList)
 
+local fileList = findAllFiles(directory)
+for _, directory in pairs(rulesetList) do
+  fileList = table.insert(findAllFiles(directory))
+  table.sort(fileList)
+end
+print(fileList)
+
+--[[
 local currentBranch = executeCapture(string.format('git -C %s branch --show-current', UISource))
 print(string.format("Currently generating globals for %s", currentBranch))
 
@@ -73,21 +97,22 @@ local destFile = assert(io.open(outputFile, 'w'), "Error opening file " .. outpu
 
 local globals = {}
 for _, filePath in ipairs(fileList) do
-    print(string.format("Handling file %s", filePath))
-    findAllGlobals(globals, luacCommand, UISource, filePath)
+  print(string.format("Handling file %s", filePath))
+  findAllGlobals(globals, luacCommand, UISource, filePath)
 end
 
 local output = {}
 for var in pairs(globals) do
-    table.insert(output, var)
+  table.insert(output, var)
 end
 table.sort(output)
 
 destFile:write('local globals = {\n')
 
 for _, var in ipairs(output) do
-    destFile:write('\t"' .. var .. '",\n')
+  destFile:write('\t"' .. var .. '",\n')
 end
 
 destFile:write('}\n\nreturn globals\n')
 destFile:close()
+]]--
