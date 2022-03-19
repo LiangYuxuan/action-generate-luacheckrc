@@ -1,24 +1,28 @@
 -- Config
-local prefix = './.fg/rulesets/'
+-- local prefix = './.fg/rulesets/'
 local globals = './.fg/globals.lua'
 local outputFile = arg[1] or '.luacheckrc'
 local headerFile = arg[2] or '.luacheckrc_header'
 
 -- Database
+-- local ThirdParty = {
+-- 	"Debug",
+-- }
+
 local MiscCustom = {
 	"Interface",
 }
 
 -- Core
-local function loadfileToEnv(path, env)
-	-- Lua 5.1
-	local func, err = loadfile(path)
-	assert(func, err)
-	setfenv(func, env)
-	func()
-
-	return env
-end
+-- local function loadfileToEnv(path, env)
+-- 	-- Lua 5.1
+-- 	local func, err = loadfile(path)
+-- 	assert(func, err)
+-- 	setfenv(func, env)
+-- 	func()
+--
+-- 	return env
+-- end
 
 local destFile = assert(io.open(outputFile, 'w'), "Error opening file " .. outputFile)
 local srcFile = io.open(headerFile, 'r')
@@ -31,9 +35,16 @@ end
 local _GlobalStrings = {}; _GlobalStrings._G = {}
 local _LuaEnum = {}
 
-loadfileToEnv(prefix .. 'GlobalStrings.lua', _GlobalStrings)
-loadfileToEnv(prefix .. 'LuaEnum.lua', _LuaEnum)
+-- local _Frames = dofile(prefix .. 'Frames.lua')
+-- local _FramesXML = dofile(prefix .. 'FrameXML.lua')
+-- local _GlobalAPI = dofile(prefix .. 'GlobalAPI.lua')
+-- loadfileToEnv(prefix .. 'GlobalStrings.lua', _GlobalStrings)
+-- loadfileToEnv(prefix .. 'LuaEnum.lua', _LuaEnum)
 
+-- local Frames, LodFrames = _Frames[1], _Frames[2]
+-- local FrameXML, LodFrameXML = _FramesXML[1], _FramesXML[2]
+-- local GlobalAPI, LuaAPI = _GlobalAPI[1], _GlobalAPI[2]
+-- local Mixins = dofile(prefix .. 'Mixins.lua')
 local FrameXMLGlobals = dofile(globals)
 local GlobalStrings
 local Constants = {}
@@ -78,9 +89,21 @@ do
 end
 
 local tableMap = {
+--	{ThirdParty,      "Third Party AddOns / Libs"},
 	{MiscCustom,      "Misc Custom"},
 
-	-- Parse from Official Rulesets
+	-- From Ketho/BlizzardInterfaceResources
+--	{Frames,          "Frames"},
+--	{LodFrames,       "Load On Demand Frames"},
+--	{FrameXML,        "FrameXML Functions"},
+--	{LodFrameXML,     "Load On Demand FrameXML Functions"},
+--	{GlobalAPI,       "Global APIs"},
+--	{LuaAPI,          "Lua APIs"},
+--	{GlobalStrings,   "Global Strings"},
+--	{Constants,       "Constants"},
+--	{LEStrings,       "Global Lua Enum Strings"},
+--	{Enums,           "Enums"},
+--	{Mixins,          "Mixins"},
 	{FrameXMLGlobals, "FrameXML Globals"},
 }
 
