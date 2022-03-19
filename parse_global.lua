@@ -6,7 +6,6 @@ local outputFileSuffix = 'globals.lua'
 
 -- Core
 local lfs = require('lfs')
-local xmlreader = require('xmlreader')
 
 local function findAllRulesets(path)
   local result = {}
