@@ -44,14 +44,16 @@ local function findAllGlobals(output, luac, path, file)
         if string.match(line, 'SETGLOBAL\t') and (
         not string.match(line, '_.+') and
         not string.match(line, 'OOB_MSGTYPE_.+') and
-        not string.match(line, 'register%u%l+.*') and
-        not string.match(line, 'unregister%u%l+.*') and
-        not string.match(line, 'handle%u%l+.*') and
-        not string.match(line, 'notify%u%l+.*') and
-        not string.match(line, 'get%u%l+.*') and
-        not string.match(line, 'set%u%l+.*') and
-        not string.match(line, 'mod%u%l+.*') and
-        not string.match(line, 'on%u%l+.*')
+        not string.match(line, 'register%u.*') and
+        not string.match(line, 'unregister%u.*') and
+        not string.match(line, 'handle%u.*') and
+        not string.match(line, 'notify%u.*') and
+        not string.match(line, 'get%u.*') and
+        not string.match(line, 'set%u.*') and
+        not string.match(line, 'add%u.*') and
+        not string.match(line, 'remove%u.*') and
+        not string.match(line, 'mod%u.*') and
+        not string.match(line, 'on%u.*')
         ) then
             local variable = string.match(line, '\t; (.+)%s*')
             output[variable] = true
