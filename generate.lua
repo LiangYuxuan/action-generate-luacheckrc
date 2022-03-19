@@ -68,25 +68,25 @@ do
 	_GlobalStrings._G = nil
 	GlobalStrings = SortKeyName(_GlobalStrings)
 
-	for key, data in pairs(_LuaEnum.Constants) do
-		for indexName in pairs(data) do
-			table.insert(Constants, 'Constants.' .. key .. '.' .. indexName)
-		end
-	end
-	table.sort(Constants)
-	_LuaEnum.Constants = nil
+-- 	for key, data in pairs(_LuaEnum.Constants) do
+-- 		for indexName in pairs(data) do
+-- 			table.insert(Constants, 'Constants.' .. key .. '.' .. -- indexName)
+-- 		end
+-- 	end
+-- 	table.sort(Constants)
+-- 	_LuaEnum.Constants = nil
 
-	local Enum = _LuaEnum.Enum
-	_LuaEnum.Enum = nil
-	LEStrings = SortKeyName(_LuaEnum)
-
-	for key, data in pairs(Enum) do
-		for indexName in pairs(data) do
-			table.insert(Enums, 'Enum.' .. key .. '.' .. indexName)
-		end
-	end
-	table.sort(Enums)
-end
+-- 	local Enum = _LuaEnum.Enum
+-- 	_LuaEnum.Enum = nil
+-- 	LEStrings = SortKeyName(_LuaEnum)
+-- 
+-- 	for key, data in pairs(Enum) do
+-- 		for indexName in pairs(data) do
+-- 			table.insert(Enums, 'Enum.' .. key .. '.' .. indexName)
+-- 		end
+-- 	end
+-- 	table.sort(Enums)
+-- end
 
 local tableMap = {
 --	{ThirdParty,      "Third Party AddOns / Libs"},
