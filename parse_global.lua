@@ -186,7 +186,6 @@ for _, ruleset in pairs(rulesetList) do
     local global = (
       parent .. ' = {\n\t\tfields = {\n\t' .. var .. '\t\t}\n\t}'
     )
-    print(global)
     table.insert(output, global)
   end
   table.sort(output)
