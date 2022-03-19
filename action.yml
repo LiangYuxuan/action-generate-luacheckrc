@@ -18,6 +18,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/2E
         path: .fg/rulesets/2E
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/3.5E
       uses: actions/checkout@v3
@@ -25,6 +26,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/3.5E
         path: .fg/rulesets/35E
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/4e
       uses: actions/checkout@v3
@@ -32,6 +34,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/4e
         path: .fg/rulesets/4E
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/5e
       uses: actions/checkout@v3
@@ -39,6 +42,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/5e
         path: .fg/rulesets/5E
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/PFRPG
       uses: actions/checkout@v3
@@ -46,6 +50,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/PFRPG
         path: .fg/rulesets/PFRPG
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/PFRPG2
       uses: actions/checkout@v3
@@ -53,6 +58,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/PFRPG2
         path: .fg/rulesets/PFRPG2
         fetch-depth: 0
+        ref: 'main'
 
     - name: Clone FG-Unofficial-Developers-Guild/SFRPG
       uses: actions/checkout@v3
@@ -60,6 +66,7 @@ runs:
         repository: FG-Unofficial-Developers-Guild/SFRPG
         path: .fg/rulesets/SFRPG
         fetch-depth: 0
+        ref: 'main'
 
     - name: Install Lua 5.1
       uses: leafo/gh-actions-lua@v9
