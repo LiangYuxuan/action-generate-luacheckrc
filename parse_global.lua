@@ -84,7 +84,7 @@ print(rulesetList)
 
 local fileList = {}
 for _, directory in pairs(rulesetList) do
-  fileList = table.insert(findAllFiles(directory))
+  fileList = table.insert(findAllFiles(rulesetspath .. directory))
   table.sort(fileList)
 end
 print(fileList)
