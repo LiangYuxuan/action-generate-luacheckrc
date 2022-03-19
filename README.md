@@ -1,5 +1,5 @@
 # action-generate-luacheckrc
-GitHub action to generate up-to-date .luacheckrc for WoW addons from [Ketho/BlizzardInterfaceResources](https://github.com/Ketho/BlizzardInterfaceResources) and [Gethe/wow-ui-source](https://github.com/Gethe/wow-ui-source).
+GitHub action to generate up-to-date .luacheckrc for FG extensions from officially released rulesets.
 
 ## Usage
 
@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     name: generate new .luacheckrc
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Generate new .luacheckrc
-        uses: LiangYuxuan/action-generate-luacheckrc@v1
+        uses: FG-Unofficial-Developers-Guild/action-generate-luacheckrc@v1
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v3
