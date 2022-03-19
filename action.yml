@@ -18,6 +18,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Clone FG-Unofficial-Developers-Guild/CoreRPG
+      uses: actions/checkout@v3
+      with:
+        repository: FG-Unofficial-Developers-Guild/CoreRPG
+        path: .fg/rulesets/CoreRPG
+        fetch-depth: 0
+        token: '${{ inputs.token }}'
+
     - name: Clone FG-Unofficial-Developers-Guild/2E
       uses: actions/checkout@v3
       with:
