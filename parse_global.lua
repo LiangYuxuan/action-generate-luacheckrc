@@ -58,63 +58,6 @@ local function findHighLevelScripts(path)
   return globals
 end
 
---[[local function findWindowScripts(path)
-  local extensionXmlPath = findBaseXml(path)
-
-  local fhandle = io.open(extensionXmlPath, 'r')
-  local data = fhandle:read("*a")
-
-  local globals = {}
-  for line in string.gmatch(data, '[^\r\n]+') do
-    if string.match(line, '<script.+/>') then
-      local global, filePath  = string.match(line, '<script name="(.+)" file="(.+)" />')
-      globals[global] = filePath
-    end
-  end
-
-  return globals
-end]]
-
---[[local function findAllFiles(path)
-  local result = {}
-
-  for file in lfs.dir(path) do
-    local fileType = lfs.attributes(path .. '/' .. file, 'mode')
-    if fileType == 'file' and not string.find(file, 'Revision Notes.lua') and string.find(file, '^[^.].+%.lua') then
-      table.insert(result, file)
-    elseif fileType == 'directory' then
-      if file ~= '.' and file ~= '..' then
-        local subResult = findAllFiles(path .. '/' .. file)
-        for _, subFile in ipairs(subResult) do
-          table.insert(result, file .. '/' .. subFile)
-        end
-      end
-    end
-  end
-
-  return result
-end]]
-
---[[local function findWindowScripts(path)
-  local result = {}
-
-  for file in lfs.dir(path) do
-    local fileType = lfs.attributes(path .. '/' .. file, 'mode')
-    if fileType == 'file' and not string.find(file, 'base.xml') and string.find(file, '^[^.].+%.xml') then
-      table.insert(result, file)
-    elseif fileType == 'directory' then
-      if file ~= '.' and file ~= '..' then
-        local subResult = findWindowScripts(path .. '/' .. file)
-        for _, subFile in ipairs(subResult) do
-          table.insert(result, file .. '/' .. subFile)
-        end
-      end
-    end
-  end
-
-  return result
-end]]
-
 local function findHighLevelGlobals(output, parent, luac, path, file)
   executeCapture(string.format('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi %s/%s', path, file))
   local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
@@ -157,8 +100,6 @@ table.sort(rulesetList)
 for _, ruleset in pairs(rulesetList) do
   local highLevelScripts = findHighLevelScripts(rulesetspath .. ruleset)
 
-  --local fileList = findAllFiles(rulesetspath .. ruleset)
-
   local currentBranch = executeCapture(
     string.format(
       'git -C %s branch --show-current', rulesetspath .. ruleset
@@ -190,12 +131,6 @@ for _, ruleset in pairs(rulesetList) do
     table.insert(output, global)
   end
   table.sort(output)
-
---  local globals = {}
---  for var in pairs(globals) do
---    table.insert(output, var)
---  end
---  table.sort(output)
 
   destFile:write('local globals = {\n')
 
