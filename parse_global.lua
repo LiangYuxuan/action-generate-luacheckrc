@@ -2,7 +2,6 @@
 local luacCommand = 'luac'
 local datapath = './.fg/'
 local rulesetspath = datapath .. 'rulesets/'
-local outputFile = datapath .. 'globals.lua'
 local outputFileSuffix = 'globals.lua'
 
 -- Core
@@ -23,12 +22,48 @@ local function findAllRulesets(path)
   return result
 end
 
+local function findBaseXml(path)
+  for file in lfs.dir(path) do
+    local fileType = lfs.attributes(path .. '/' .. file, 'mode')
+    if fileType == 'file' and string.find(file, 'base.xml') then
+      return file
+    end
+  end
+end
+
+local function executeCapture(command)
+    local file = assert(io.popen(command, 'r'))
+    local str = assert(file:read('*a'))
+    file:close()
+    str = string.gsub(str, '^%s+', '')
+    str = string.gsub(str, '%s+$', '')
+    return str
+end
+
+local function findHighLevelScripts(path)
+    local extensionXml = findBaseXml(path)
+    print(path, extensionXml)
+
+    executeCapture(string.format('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi %s/%s', path, extensionXml))
+    local content = executeCapture(string.format('%s -l -p %s/%s', luacCommand, path, extensionXml))
+
+    local output = {}
+    for line in string.gmatch(content, '[^\r\n]+') do
+        if string.match(line, 'SETGLOBAL\t') then
+            local variable = string.match(line, '\t; (.+)%s*')
+            output[variable] = true
+        end
+    end
+
+    return output
+end
+
 local function findAllFiles(path)
   local result = {}
 
   for file in lfs.dir(path) do
     local fileType = lfs.attributes(path .. '/' .. file, 'mode')
-    if fileType == 'file' and string.find(file, '^[^.].+%.lua') then
+    if fileType == 'file' and not string.find(file, 'Revision Notes.lua') and string.find(file, '^[^.].+%.lua') then
       table.insert(result, file)
     elseif fileType == 'directory' then
       if file ~= '.' and file ~= '..' then
@@ -41,15 +76,6 @@ local function findAllFiles(path)
   end
 
   return result
-end
-
-local function executeCapture(command)
-    local file = assert(io.popen(command, 'r'))
-    local str = assert(file:read('*a'))
-    file:close()
-    str = string.gsub(str, '^%s+', '')
-    str = string.gsub(str, '%s+$', '')
-    return str
 end
 
 local function findAllGlobals(output, luac, path, file)
@@ -83,6 +109,8 @@ local rulesetList = findAllRulesets(rulesetspath)
 table.sort(rulesetList)
 
 for _, ruleset in pairs(rulesetList) do
+  local highLevelScripts = findHighLevelScripts(rulesetspath .. ruleset)
+
   local fileList = findAllFiles(rulesetspath .. ruleset)
 
   local currentBranch = executeCapture(
@@ -112,7 +140,6 @@ for _, ruleset in pairs(rulesetList) do
     table.insert(output, var)
   end
   table.sort(output)
-  print(output)
 
   destFile:write('local globals = {\n')
 
