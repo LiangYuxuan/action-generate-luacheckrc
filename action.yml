@@ -95,7 +95,7 @@ runs:
       shell: bash
 
     - name: Create globals folder
-      run: mkdir $GITHUB_ACTION_PATH/globals
+      run: mkdir $GITHUB_ACTION_PATH/.fg/globals
       shell: bash
 
     - name: Parse globals
