@@ -22,6 +22,8 @@ jobs:
 
       - name: Generate new .luacheckrc
         uses: FG-Unofficial-Developers-Guild/action-generate-luacheckrc@v1
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v3
@@ -36,6 +38,7 @@ jobs:
 
 * `target-path`: Path to generated `.luacheckrc`. Defaults to `.luacheckrc`.
 * `header-path`: Path to `.luacheckrc` header, where you can put your own settings in. Defaults to `.luacheckrc_header`.
+* `token`: A GitHub PAT to allow access to private repos.
 
 ## License
 The Unlicense
