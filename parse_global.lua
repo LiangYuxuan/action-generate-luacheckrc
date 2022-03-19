@@ -3,6 +3,7 @@ local luacCommand = 'luac'
 local datapath = './.fg/'
 local rulesetspath = datapath .. 'rulesets/'
 local outputFile = datapath .. 'globals.lua'
+local outputFileSuffix = 'globals.lua'
 
 -- Core
 local lfs = require('lfs')
@@ -23,23 +24,23 @@ local function findAllRulesets(path)
 end
 
 local function findAllFiles(path)
-    local result = {}
+  local result = {}
 
-    for file in lfs.dir(path) do
-        local fileType = lfs.attributes(path .. '/' .. file, 'mode')
-        if fileType == 'file' and string.find(file, '^[^.].+%.lua') then
-            table.insert(result, file)
-        elseif fileType == 'directory' then
-            if file ~= '.' and file ~= '..' then
-                local subResult = findAllFiles(path .. '/' .. file)
-                for _, subFile in ipairs(subResult) do
-                    table.insert(result, file .. '/' .. subFile)
-                end
-            end
+  for file in lfs.dir(path) do
+    local fileType = lfs.attributes(path .. '/' .. file, 'mode')
+    if fileType == 'file' and string.find(file, '^[^.].+%.lua') then
+      table.insert(result, file)
+    elseif fileType == 'directory' then
+      if file ~= '.' and file ~= '..' then
+        local subResult = findAllFiles(path .. '/' .. file)
+        for _, subFile in ipairs(subResult) do
+          table.insert(result, file .. '/' .. subFile)
         end
+      end
     end
+  end
 
-    return result
+  return result
 end
 
 local function executeCapture(command)
@@ -80,38 +81,45 @@ end
 
 local rulesetList = findAllRulesets(rulesetspath)
 table.sort(rulesetList)
-print(rulesetList)
 
-local fileList = {}
-for _, directory in pairs(rulesetList) do
-  fileList[directory] = findAllFiles(rulesetspath .. directory)
+for _, ruleset in pairs(rulesetList) do
+  local fileList = findAllFiles(rulesetspath .. ruleset)
+
+  local currentBranch = executeCapture(
+    string.format(
+      'git -C %s branch --show-current', rulesetspath .. ruleset
+    )
+  )
+  print(
+    string.format(
+    "Currently generating globals for %s@%s", ruleset, currentBranch
+    )
+  )
+
+  local destFile = assert(
+    io.open(datapath .. ruleset .. outputFileSuffix, 'w'),
+    "Error opening file " .. datapath .. ruleset .. outputFileSuffix
+  )
+
+  local globals = {}
+  for _, filePath in ipairs(fileList) do
+    print(string.format("Handling file %s", filePath))
+    findAllGlobals(globals, luacCommand, rulesetspath .. ruleset, filePath)
+  end
+
+  local output = {}
+  for var in pairs(globals) do
+    table.insert(output, var)
+  end
+  table.sort(output)
+  print(output)
+
+  destFile:write('local globals = {\n')
+
+  for _, var in ipairs(output) do
+    destFile:write('\t"' .. var .. '",\n')
+  end
+
+  destFile:write('}\n\nreturn globals\n')
+  destFile:close()
 end
-print(fileList)
-
---[[
-local currentBranch = executeCapture(string.format('git -C %s branch --show-current', UISource))
-print(string.format("Currently generating globals for %s", currentBranch))
-
-local destFile = assert(io.open(outputFile, 'w'), "Error opening file " .. outputFile)
-
-local globals = {}
-for _, filePath in ipairs(fileList) do
-  print(string.format("Handling file %s", filePath))
-  findAllGlobals(globals, luacCommand, UISource, filePath)
-end
-
-local output = {}
-for var in pairs(globals) do
-  table.insert(output, var)
-end
-table.sort(output)
-
-destFile:write('local globals = {\n')
-
-for _, var in ipairs(output) do
-  destFile:write('\t"' .. var .. '",\n')
-end
-
-destFile:write('}\n\nreturn globals\n')
-destFile:close()
-]]--
