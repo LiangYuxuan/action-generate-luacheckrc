@@ -79,14 +79,14 @@ do
 -- 	local Enum = _LuaEnum.Enum
 -- 	_LuaEnum.Enum = nil
 -- 	LEStrings = SortKeyName(_LuaEnum)
--- 
+--
 -- 	for key, data in pairs(Enum) do
 -- 		for indexName in pairs(data) do
 -- 			table.insert(Enums, 'Enum.' .. key .. '.' .. indexName)
 -- 		end
 -- 	end
 -- 	table.sort(Enums)
--- end
+end
 
 local tableMap = {
 --	{ThirdParty,      "Third Party AddOns / Libs"},
