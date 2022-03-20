@@ -55,6 +55,7 @@ local function findHighLevelScripts(path)
     end
   end
 
+  fhandle:close()
   return globals
 end
 
