@@ -16,6 +16,7 @@ local lfs = require('lfs')
 local function findAllPackages(path)
   local result = {}
 
+  lfs.mkdir(path)
   for file in lfs.dir(path) do
     local fileType = lfs.attributes(path .. '/' .. file, 'mode')
     if fileType == 'directory' then
