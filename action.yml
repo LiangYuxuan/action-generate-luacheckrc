@@ -14,77 +14,10 @@ inputs:
   std:
     description: 'String of std definitions to use'
     required: false
-  token:
-    description: 'GitHub PAT'
-    required: false
 
 runs:
   using: "composite"
   steps:
-    - name: Clone FG-Unofficial-Developers-Guild/CoreRPG
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/CoreRPG
-        path: .fg/rulesets/CoreRPG
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/2E
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/2E
-        path: .fg/rulesets/DND2E
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/3.5E
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/3.5E
-        path: .fg/rulesets/DND35E
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/4e
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/4e
-        path: .fg/rulesets/DND4E
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/5e
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/5e
-        path: .fg/rulesets/DND5E
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/PFRPG
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/PFRPG
-        path: .fg/rulesets/PFRPG
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/PFRPG2
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/PFRPG2
-        path: .fg/rulesets/PFRPG2
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
-    - name: Clone FG-Unofficial-Developers-Guild/SFRPG
-      uses: actions/checkout@v3
-      with:
-        repository: FG-Unofficial-Developers-Guild/SFRPG
-        path: .fg/rulesets/SFRPG
-        fetch-depth: 0
-        token: '${{ inputs.token }}'
-
     - name: Install Lua 5.1
       uses: leafo/gh-actions-lua@v9
       with:
