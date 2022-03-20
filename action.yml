@@ -94,10 +94,6 @@ runs:
       run: luarocks install luafilesystem
       shell: bash
 
-    - name: Create globals folder
-      run: mkdir $GITHUB_WORKSPACE/.fg/globals
-      shell: bash
-
     - name: Parse globals
       run: lua $GITHUB_ACTION_PATH/parse_global.lua
       shell: bash
