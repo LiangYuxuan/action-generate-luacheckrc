@@ -2,7 +2,9 @@
 local luacCommand = 'luac'
 local datapath = './.fg/'
 local rulesetspath = datapath .. 'rulesets/'
-local globals_path = datapath .. 'globals/'
+local extensionsspath = datapath .. 'extensions/'
+local ruleset_globals_path = datapath .. 'rulesetglobals/'
+local extension_globals_path = datapath .. 'extensionglobals/'
 local globals_suffix = 'globals.lua'
 
 -- Core
@@ -102,8 +104,8 @@ for _, ruleset in pairs(rulesetList) do
   )
 
   local destFile = assert(
-    io.open(globals_path .. ruleset .. globals_suffix, 'w'),
-    "Error opening file " .. globals_path .. ruleset .. globals_suffix
+    io.open(ruleset_globals_path .. ruleset .. globals_suffix, 'w'),
+    "Error opening file " .. ruleset_globals_path .. ruleset .. globals_suffix
   )
 
   local contents = {}
