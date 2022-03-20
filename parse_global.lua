@@ -1,16 +1,19 @@
 -- Config
 local luacCommand = 'luac'
 local datapath = './.fg/'
-local rulesetspath = datapath .. 'rulesets/'
-local extensionsspath = datapath .. 'extensions/'
-local ruleset_globals_path = datapath .. 'rulesetglobals/'
-local extension_globals_path = datapath .. 'extensionglobals/'
-local globals_suffix = 'globals.lua'
+local globals_suffix = 'globals'
+local globals_fileextension = '.lua'
+
+-- Datatypes
+local packageTypes = {
+  ['rulesets'] = { datapath .. 'rulesets/', 'base.xml' },
+  ['extensions'] = { datapath .. 'extensions/', 'extension.xml' },
+}
 
 -- Core
 local lfs = require('lfs')
 
-local function findAllRulesets(path)
+local function findAllPackages(path)
   local result = {}
 
   for file in lfs.dir(path) do
@@ -34,17 +37,17 @@ local function executeCapture(command)
   return str
 end
 
-local function findBaseXml(path)
+local function findBaseXml(path, searchName)
   for file in lfs.dir(path) do
     local fileType = lfs.attributes(path .. '/' .. file, 'mode')
-    if fileType == 'file' and string.find(file, 'base.xml') then
+    if fileType == 'file' and string.find(file, searchName) then
       return path .. '/' .. file
     end
   end
 end
 
-local function findHighLevelScripts(path)
-  local baseXmlFile = findBaseXml(path)
+local function findHighLevelScripts(path, searchName)
+  local baseXmlFile = findBaseXml(path, searchName)
 
   local fhandle = io.open(baseXmlFile, 'r')
   local data = fhandle:read("*a")
@@ -85,49 +88,61 @@ local function findHighLevelGlobals(output, parent, luac, path, file)
   return output
 end
 
-local rulesetList = findAllRulesets(rulesetspath)
-table.sort(rulesetList)
+for packageTypeName, packageType in pairs(packageTypes) do
+  local packageList = findAllPackages(packageType[1])
+  table.sort(packageList)
 
-for _, ruleset in pairs(rulesetList) do
-  print(string.format("Searching files from %s for globals", ruleset))
-  local highLevelScripts = findHighLevelScripts(rulesetspath .. ruleset)
+  print(string.format("Searching for %s", packageTypeName))
+  lfs.mkdir(datapath .. packageTypeName .. globals_suffix .. '/')
+  for _, packageName in pairs(packageList) do
+    local packagePath = datapath .. packageTypeName .. '/'
+    print(string.format("Searching %s files for globals", packageName))
+    local highLevelScripts = findHighLevelScripts(packagePath .. packageName, packageType[2])
 
-  local currentBranch = executeCapture(
-    string.format(
-      'git -C %s branch --show-current', rulesetspath .. ruleset
+    local currentBranch = executeCapture(
+      string.format(
+        'git -C %s branch --show-current', packagePath .. packageName
+      )
     )
-  )
-  print(
-    string.format(
-    "Currently generating stds definition for %s@%s", ruleset, currentBranch
+    print(
+      string.format(
+      "Currently generating stds definition for %s@%s", packageName, currentBranch
+      )
     )
-  )
 
-  local destFile = assert(
-    io.open(ruleset_globals_path .. ruleset .. globals_suffix, 'w'),
-    "Error opening file " .. ruleset_globals_path .. ruleset .. globals_suffix
-  )
-
-  local contents = {}
-  for parent, filePath in pairs(highLevelScripts) do
-    --print(string.format("Handling file %s", filePath))
-    findHighLevelGlobals(contents, parent, luacCommand, rulesetspath .. ruleset, filePath)
-  end
-
-  local output = {}
-  for parent, var in pairs(contents) do
-    local global = (
-      parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. var .. '\t\t},\n\t},'
+    local destFilePath = (
+      datapath ..
+      packageTypeName ..
+      globals_suffix ..
+      '/' ..
+      packageName ..
+      globals_suffix ..
+      globals_fileextension
     )
-    table.insert(output, global)
-  end
-  table.sort(output)
+    local destFile = assert(
+      io.open(destFilePath, 'w'), "Error opening file " .. destFilePath)
 
-  destFile:write('globals = {\n')
-  for _, var in ipairs(output) do
-    destFile:write('\t' .. var .. '\n')
-  end
+    local contents = {}
+    for parent, filePath in pairs(highLevelScripts) do
+      --print(string.format("Handling file %s", filePath))
+      findHighLevelGlobals(contents, parent, luacCommand, packageType[1] .. packageName, filePath)
+    end
 
-  destFile:write('}\n')
-  destFile:close()
+    local output = {}
+    for parent, var in pairs(contents) do
+      local global = (
+        parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. var .. '\t\t},\n\t},'
+      )
+      table.insert(output, global)
+    end
+    table.sort(output)
+
+    destFile:write('globals = {\n')
+    for _, var in ipairs(output) do
+      destFile:write('\t' .. var .. '\n')
+    end
+
+    destFile:write('}\n')
+    destFile:close()
+  end
 end
