@@ -2,9 +2,9 @@
 local dataPath = './.fg/'
 local globalsExtension = '.lua'
 
-local outputFile = arg[1] or '.luacheckrc'
+local stdString = arg[1] or 'lua51+fg+fgfunctions+corerpg'
 local headerFileName = arg[2] or '.luacheckrc_header'
-local stdFileName = arg[3] or '.luacheckrc_std'
+local outputFile = arg[3] or '.luacheckrc'
 
 -- Datatypes
 local packageTypes = {
@@ -23,10 +23,8 @@ if headerFile then
 	headerFile:close()
 end
 
-local stdFile = io.open(stdFileName, 'r')
-if stdFile then
-	destFile:write('\n' .. stdFile:read('*a'))
-	stdFile:close()
+if stdString then
+	destFile:write("\nstd = '" .. stdString .. "'\n")
 end
 
 local function findPackageFiles(path)

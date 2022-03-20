@@ -31,9 +31,10 @@ end
 local function executeCapture(command)
   local file = assert(io.popen(command, 'r'))
   local str = assert(file:read('*a'))
-  file:close()
   str = string.gsub(str, '^%s+', '')
   str = string.gsub(str, '%s+$', '')
+
+  file:close()
   return str
 end
 

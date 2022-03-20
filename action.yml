@@ -11,6 +11,9 @@ inputs:
     description: 'Path to .luacheckrc header template'
     required: false
     default: '.luacheckrc_header'
+  std:
+    description: 'String of std definitions to use'
+    required: false
   token:
     description: 'GitHub PAT'
     required: false
@@ -99,7 +102,7 @@ runs:
       shell: bash
 
     - name: Generate .luacheckrc
-      run: lua $GITHUB_ACTION_PATH/generate.lua ${{ inputs.target-path }} ${{ inputs.header-path }}
+      run: lua $GITHUB_ACTION_PATH/generate.lua ${{ inputs.std }} ${{ inputs.header-path }} ${{ inputs.target-path }}
       shell: bash
 
     - name: Clean up
