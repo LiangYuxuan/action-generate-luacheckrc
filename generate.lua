@@ -1,8 +1,8 @@
 -- Config
 local dataPath = './.fg/'
-local globalsExtension = '.lua'
 
-local stdString = arg[1] or 'lua51+fg+fgfunctions+corerpg'
+local stdBase = 'lua51+fg+fgfunctions+corerpg'
+local stdString = arg[1] or ''
 local headerFileName = arg[2] or '.luacheckrc_header'
 local outputFile = arg[3] or '.luacheckrc'
 
@@ -15,18 +15,20 @@ local packageTypes = {
 -- Core
 local lfs = require('lfs')
 
+-- open new luachecrc file for writing and post error if not possible
 local destFile = assert(io.open(outputFile, 'w'), "Error opening file " .. outputFile)
 
+-- open header file and add to top of new config file
 local headerFile = io.open(headerFileName, 'r')
 if headerFile then
 	destFile:write(headerFile:read('*a'))
 	headerFile:close()
 end
 
-if stdString then
-	destFile:write("\nstd = '" .. stdString .. "'\n")
-end
+-- add std config to luachecrc file
+destFile:write("\nstd = '" .. stdBase .. stdString .. "'\n")
 
+-- returns a list of files ending in globals.lua
 local function findPackageFiles(path)
   local result = {}
 
@@ -43,6 +45,8 @@ local function findPackageFiles(path)
 	return result
 end
 
+-- looks through each package type's detected globals
+-- it then appends them to the config file
 for _, packageType in pairs(packageTypes) do
 	local packageFiles = findPackageFiles(packageType[1])
 	for packageName, file in pairs(packageFiles) do

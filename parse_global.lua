@@ -2,7 +2,6 @@
 local luacCommand = 'luac'
 local datapath = './.fg/'
 local globals_suffix = 'globals'
-local globals_fileextension = '.lua'
 
 -- Datatypes
 local packageTypes = {
@@ -119,7 +118,7 @@ for packageTypeName, packageType in pairs(packageTypes) do
       '/' ..
       packageName ..
       globals_suffix ..
-      globals_fileextension
+      '.lua'
     )
     local destFile = assert(
       io.open(destFilePath, 'w'), "Error opening file " .. destFilePath)
