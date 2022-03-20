@@ -63,31 +63,20 @@ local function findHighLevelGlobals(output, parent, luac, path, file)
   local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
 
   for line in string.gmatch(content, '[^\r\n]+') do
-    if string.match(line, 'SETGLOBAL\t') and (
-    not string.match(line, '_.+') and
-    not string.match(line, 'OOB_MSGTYPE_.+') and
-    not string.match(line, 'register%u.*') and
-    not string.match(line, 'unregister%u.*') and
-    not string.match(line, 'handle%u.*') and
-    not string.match(line, 'notify%u.*') and
-    not string.match(line, 'get%u.*') and
-    not string.match(line, 'set%u.*') and
-    not string.match(line, 'add%u.*') and
-    not string.match(line, 'remove%u.*') and
-    not string.match(line, 'mod%u.*') and
-    not string.match(line, 'on%u.*')
-    ) then
+    if string.match(line, 'SETGLOBAL\t') and
+    (not string.match(line, '_.+') and not string.match(line, 'OOB_MSGTYPE_.+')) then
       local variable = (
         '\t\t' ..
         string.match(line, '\t; (.+)%s*') ..
         ' = {\n' ..
-        '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false' ..
+        '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,' ..
         '\n\t\t\t},\n'
       )
       if not output[parent] then
-        output[parent] = ''
+        output[parent] = variable
+      else
+        output[parent] = output[parent] .. '\t' .. variable
       end
-      output[parent] = output[parent] .. variable
     end
   end
 
@@ -120,24 +109,22 @@ for _, ruleset in pairs(rulesetList) do
   for parent, filePath in pairs(highLevelScripts) do
     print(string.format("Handling file %s", filePath))
     findHighLevelGlobals(contents, parent, luacCommand, rulesetspath .. ruleset, filePath)
-
   end
 
   local output = {}
   for parent, var in pairs(contents) do
     local global = (
-      parent .. ' = {\n\t\tfields = {\n\t' .. var .. '\t\t},\n\t}'
+      parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. var .. '\t\t},\n\t},'
     )
     table.insert(output, global)
   end
   table.sort(output)
 
   destFile:write('globals = {\n')
-
   for _, var in ipairs(output) do
-    destFile:write('\t' .. var .. ',\n')
+    destFile:write('\t' .. var .. '\n')
   end
 
-  destFile:write('},\n')
+  destFile:write('}\n')
   destFile:close()
 end

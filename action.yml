@@ -30,7 +30,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: FG-Unofficial-Developers-Guild/2E
-        path: .fg/rulesets/2E
+        path: .fg/rulesets/DND2E
         fetch-depth: 0
         token: '${{ inputs.token }}'
 
@@ -38,7 +38,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: FG-Unofficial-Developers-Guild/3.5E
-        path: .fg/rulesets/35E
+        path: .fg/rulesets/DND35E
         fetch-depth: 0
         token: '${{ inputs.token }}'
 
@@ -46,7 +46,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: FG-Unofficial-Developers-Guild/4e
-        path: .fg/rulesets/4E
+        path: .fg/rulesets/DND4E
         fetch-depth: 0
         token: '${{ inputs.token }}'
 
@@ -54,7 +54,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: FG-Unofficial-Developers-Guild/5e
-        path: .fg/rulesets/5E
+        path: .fg/rulesets/DND5E
         fetch-depth: 0
         token: '${{ inputs.token }}'
 
