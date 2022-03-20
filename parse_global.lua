@@ -64,8 +64,7 @@ local function findHighLevelGlobals(output, parent, luac, path, file)
   local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
 
   for line in string.gmatch(content, '[^\r\n]+') do
-    if string.match(line, 'SETGLOBAL\t') and
-    (not string.match(line, '_.+') and not string.match(line, 'OOB_MSGTYPE_.+')) then
+    if string.match(line, 'SETGLOBAL\t') then
       local variable = (
         '\t\t' ..
         string.match(line, '\t; (.+)%s*') ..
@@ -75,7 +74,7 @@ local function findHighLevelGlobals(output, parent, luac, path, file)
       )
       if not output[parent] then
         output[parent] = variable
-      else
+      elseif not string.find(output[parent], '\t' .. variable .. '\t') then
         output[parent] = output[parent] .. '\t' .. variable
       end
     end
@@ -88,6 +87,7 @@ local rulesetList = findAllRulesets(rulesetspath)
 table.sort(rulesetList)
 
 for _, ruleset in pairs(rulesetList) do
+  print(string.format("Searching files from %s for globals", ruleset))
   local highLevelScripts = findHighLevelScripts(rulesetspath .. ruleset)
 
   local currentBranch = executeCapture(
@@ -97,7 +97,7 @@ for _, ruleset in pairs(rulesetList) do
   )
   print(
     string.format(
-    "Currently generating globals for %s@%s", ruleset, currentBranch
+    "Currently generating stds definition for %s@%s", ruleset, currentBranch
     )
   )
 
@@ -108,7 +108,7 @@ for _, ruleset in pairs(rulesetList) do
 
   local contents = {}
   for parent, filePath in pairs(highLevelScripts) do
-    print(string.format("Handling file %s", filePath))
+    --print(string.format("Handling file %s", filePath))
     findHighLevelGlobals(contents, parent, luacCommand, rulesetspath .. ruleset, filePath)
   end
 
