@@ -38,6 +38,7 @@ jobs:
 
 * `target-path`: Path to generated `.luacheckrc`. Defaults to `.luacheckrc`.
 * `header-path`: Path to `.luacheckrc` header, where you can put your own settings in. Defaults to `.luacheckrc_header`.
+* `std`: A string such as `+dnd35e+pfrpg` which will pre-select definitions in the generated file. 
 * `token`: A GitHub PAT to allow access to private repos.
 
 ## License
