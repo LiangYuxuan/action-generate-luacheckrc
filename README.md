@@ -38,7 +38,7 @@ jobs:
         fetch-depth: 0
 
     - name: Generate new .luacheckrc
-      uses: FG-Unofficial-Developers-Guild/action-generate-luacheckrc@main
+      uses: FG-Unofficial-Developers-Guild/action-generate-luacheckrc@v1
       with:
         target-path: '.luacheckrc'
         header-path: '.luacheckrc_header'
