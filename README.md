@@ -1,5 +1,6 @@
 # action-generate-luacheckrc
-GitHub action to generate up-to-date .luacheckrc for FG extensions from officially released rulesets.
+GitHub action to generate up-to-date .luacheckrc for FantasyGrounds development.
+It creates definitions by scanning FantasyGrounds rulesets and extensions to automatically whitelist variables.
 
 ## Usage
 
