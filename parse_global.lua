@@ -55,7 +55,9 @@ local function findHighLevelScripts(baseXmlFile)
   for line in string.gmatch(data, '[^\r\n]+') do
     if string.match(line, '<script.+/>') and not string.match(line, '<!--.*<script.+/>.*-->') then
       local fileName, filePath  = string.match(line, '<script%s*name="(.+)"%s*[ruleset=".*"%s*]*file="(.+)"%s*/>')
-      scripts[fileName] = filePath
+      if fileName then
+        scripts[fileName] = filePath
+      end
     end
   end
 
@@ -89,9 +91,11 @@ local function findInterfaceXmls(path, searchName)
   local xmlFiles = {}
   for line in string.gmatch(data, '[^\r\n]+') do
     if string.match(line, '<includefile.+/>') and not string.match(line, '<!--.*<includefile.+/>.*-->') then
-      local filePath  = string.match(line, '<includefile%s*[ruleset=".*"%s*]*source="(.+)"%s*/>')
+      local filePath  = string.match(line, '<includefile%s*[ruleset=".*"%s*]*source="(.+)"%s*/>') or ''
       local fileName = string.match(filePath, '.+/(.-).xml') or string.match(filePath, '(.-).xml')
-      xmlFiles[fileName] = path .. '/' .. filePath
+      if fileName then
+        xmlFiles[fileName] = path .. '/' .. filePath
+      end
     end
   end
 
