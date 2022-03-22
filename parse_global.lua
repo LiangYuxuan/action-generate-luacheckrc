@@ -63,7 +63,7 @@ local function findHighLevelScripts(baseXmlFile)
   return scripts
 end
 
-local function findInterfaceScripts(xmlFile)
+local function findInterfaceScripts(path, xmlFile)
   local fhandle = io.open(xmlFile, 'r')
   local data = fhandle:read("*a")
 
@@ -71,7 +71,8 @@ local function findInterfaceScripts(xmlFile)
   for line in string.gmatch(data, '[^\r\n]+') do
     if string.match(line, '<script.+/>') then
       local filePath  = string.match(line, '<script%s*file="(.+)"%s*/>')
-      table.insert(scripts, filePath)
+      local fileName = string.match(filePath, '.+/(.-).lua') or string.match(filePath, '(.-).lua')
+      scripts[fileName] = path .. '/' .. filePath
     end
   end
 
@@ -87,7 +88,7 @@ local function findInterfaceXmls(path, searchName)
 
   local xmlFiles = {}
   for line in string.gmatch(data, '[^\r\n]+') do
-    if string.match(line, '<includefile.+/>') then
+    if string.match(line, '<includefile.+/>') and not string.match(line, '<!--.*<includefile.+/>.*-->') then
       local filePath  = string.match(line, '<includefile%s*[ruleset=".*"%s*]*source="(.+)"%s*/>')
       local fileName = string.match(filePath, '.+/(.-).xml') or string.match(filePath, '(.-).xml')
       xmlFiles[fileName] = path .. '/' .. filePath
@@ -98,9 +99,9 @@ local function findInterfaceXmls(path, searchName)
   return xmlFiles
 end
 
-local function findHighLevelGlobals(output, parent, luac, path, file)
-  executeCapture(string.format('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi %s/%s', path, file))
-  local content = executeCapture(string.format('%s -l -p %s/%s', luac, path, file))
+local function findGlobals(output, parent, luac, file)
+  executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. file)
+  local content = executeCapture(string.format('%s -l -p ' .. file, luac))
 
   for line in string.gmatch(content, '[^\r\n]+') do
     if string.match(line, 'SETGLOBAL\t') and
@@ -161,17 +162,17 @@ for packageTypeName, packageType in pairs(packageTypes) do
     local contents = {}
     for parent, filePath in pairs(highLevelScripts) do
       --print(string.format("Handling file %s", filePath))
-      findHighLevelGlobals(contents, parent, luacCommand, packageType[1] .. packageName, filePath)
+      findGlobals(contents, parent, luacCommand, packageType[1] .. packageName .. '/' .. filePath)
     end
 
---    local interfaceScripts = findInterfaceXmls(packagePath .. packageName, packageType[2])
---    for _, xmlPath in pairs(interfaceScripts) do
---      local xmlScripts = findInterfaceScripts(xmlPath)
---      for fileName, filePath in ipairs(xmlScripts) do
---        print(string.format("Handling file %s", filePath))
---        findHighLevelGlobals(contents, fileName, luacCommand, packageType[1] .. packageName, filePath)
---      end
---    end
+    local interfaceScripts = findInterfaceXmls(packagePath .. packageName, packageType[2])
+    for _, xmlPath in pairs(interfaceScripts) do
+      local xmlScripts = findInterfaceScripts(packagePath .. packageName, xmlPath)
+      for fileName, filePath in pairs(xmlScripts) do
+        print(string.format("Handling file %s", fileName))
+        findGlobals(contents, fileName, luacCommand, filePath)
+      end
+    end
 
     local output = {}
     for parent, var in pairs(contents) do
