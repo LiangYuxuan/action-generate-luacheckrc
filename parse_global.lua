@@ -143,21 +143,23 @@ for packageTypeName, packageType in pairs(packageTypes) do
         'git -C %s branch --show-current', packagePath .. packageName
       )
     )
+
+    local formattedPackageName = string.gsub(packageName, '[^%a%d]+', '')
     print(
       string.format(
-      "Currently generating stds definition for %s@%s", packageName, currentBranch
+      "Currently generating stds definition for %s@%s", formattedPackageName, currentBranch
       )
     )
-
     local destFilePath = (
       datapath ..
       packageTypeName ..
       globals_suffix ..
       '/' ..
-      packageName ..
+      formattedPackageName ..
       globals_suffix ..
       '.lua'
     )
+
     local destFile = assert(
       io.open(destFilePath, 'w'), "Error opening file " .. destFilePath)
 
