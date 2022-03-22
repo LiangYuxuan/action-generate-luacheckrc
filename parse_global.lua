@@ -145,6 +145,9 @@ for packageTypeName, packageType in pairs(packageTypes) do
     )
 
     local formattedPackageName = string.gsub(packageName, '[^%a%d]+', '')
+    if string.sub(formattedPackageName, 1, 1):match('%d') then
+      formattedPackageName .. 'def' .. formattedPackageName
+    end
     print(
       string.format(
       "Currently generating stds definition for %s@%s", formattedPackageName, currentBranch
