@@ -53,7 +53,7 @@ local function findHighLevelScripts(baseXmlFile)
 
   local scripts = {}
   for line in string.gmatch(data, '[^\r\n]+') do
-    if string.match(line, '<script.+/>') then
+    if string.match(line, '<script.+/>') and not string.match(line, '<!--.*<script.+/>.*-->') then
       local fileName, filePath  = string.match(line, '<script%s*name="(.+)"%s*[ruleset=".*"%s*]*file="(.+)"%s*/>')
       scripts[fileName] = filePath
     end
