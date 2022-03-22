@@ -30,6 +30,10 @@ runs:
       run: luarocks install luafilesystem
       shell: bash
 
+    - name: Install lua-xmlparser
+      run: luarocks install xmlparser
+      shell: bash
+
     - name: Parse globals
       run: lua $GITHUB_ACTION_PATH/parse_global.lua
       shell: bash
