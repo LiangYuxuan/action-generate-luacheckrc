@@ -72,7 +72,7 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
       if parentControlName and value:find('.lua') then
         local fullPath = path .. '/' .. value
         --print(parentControlName, fullPath)
-        if io.open(fullPath, 'w') then
+        if io.open(fullPath, 'r') then
           scripts[parentControlName] = fullPath
         else
           scripts[parentControlName] = datapath .. 'rulesets/CoreRPG/' .. value
@@ -129,11 +129,7 @@ local function findGlobals(output, parent, luac, file)
   executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. file)
   local content = executeCapture(string.format('%s -l -p ' .. file, luac))
 
-  --local isInterfaceFile = string.match(file, 'campaign') and not string.match(file, 'manager') and not string.match(file, 'invlist')
   for line in string.gmatch(content, '[^\r\n]+') do
-    --if isInterfaceFile then
-    --  print(line)
-    --end
     if string.match(line, 'SETGLOBAL%s+') and
     not string.match(line, '%s+;%s+(_)%s*') then
       local variable = (
