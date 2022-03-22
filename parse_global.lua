@@ -65,20 +65,42 @@ local function findHighLevelScripts(baseXmlFile)
   return scripts
 end
 
-local function findInterfaceScripts(path, xmlFile)
-  local fhandle = io.open(xmlFile, 'r')
-  local data = fhandle:read("*a")
-
-  local scripts = {}
-  for line in string.gmatch(data, '[^\r\n]+') do
-    if string.match(line, '<script.+/>') then
-      local filePath  = string.match(line, '<script%s*file="(.+)"%s*/>')
-      local fileName = string.match(filePath, '.+/(.-).lua') or string.match(filePath, '(.-).lua')
-      scripts[fileName] = path .. '/' .. filePath
+local parseFile = require('xmlparser').parseFile
+local function findScriptsInXml(scripts, path, e, parentControlName)
+  if e.tag then
+    for _, value in pairs(e.attrs) do
+      if parentControlName and value:find('.lua') then
+        local fullPath = path .. '/' .. value
+        --print(parentControlName, fullPath)
+        if io.open(fullPath, 'w') then
+          scripts[parentControlName] = fullPath
+        else
+          scripts[parentControlName] = datapath .. 'rulesets/CoreRPG/' .. value
+        end
+        scripts[parentControlName] = scripts[parentControlName]:gsub("\\", '/')
+      end
+    end
+    local controlName
+    for _,attr in ipairs(e.orderedattrs) do
+      if attr.name == 'name' or attr.name == 'file' then
+        controlName = attr.value
+      end
+    end
+    for _, child in ipairs(e.children) do
+      findScriptsInXml(scripts, path, child, controlName)
     end
   end
+end
 
-  fhandle:close()
+local function findInterfaceScripts(path, xmlFile)
+  local doc = parseFile(xmlFile)
+
+  local scripts = {}
+
+  for _, xmlEntry in pairs(doc.children) do
+    findScriptsInXml(scripts, path, xmlEntry)
+  end
+
   return scripts
 end
 
@@ -107,9 +129,13 @@ local function findGlobals(output, parent, luac, file)
   executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. file)
   local content = executeCapture(string.format('%s -l -p ' .. file, luac))
 
+  --local isInterfaceFile = string.match(file, 'campaign') and not string.match(file, 'manager') and not string.match(file, 'invlist')
   for line in string.gmatch(content, '[^\r\n]+') do
-    if string.match(line, 'SETGLOBAL\t') and
-    not string.match(line, '\t; (_)%s*') then
+    --if isInterfaceFile then
+    --  print(line)
+    --end
+    if string.match(line, 'SETGLOBAL%s+') and
+    not string.match(line, '%s+;%s+(_)%s*') then
       local variable = (
         '\t\t' ..
         string.match(line, '\t; (.+)%s*') ..
@@ -178,7 +204,7 @@ for packageTypeName, packageType in pairs(packageTypes) do
     for _, xmlPath in pairs(interfaceScripts) do
       local xmlScripts = findInterfaceScripts(packagePath .. packageName, xmlPath)
       for fileName, filePath in pairs(xmlScripts) do
-        print(string.format("Handling file %s", fileName))
+        --print(string.format("Handling file at %s", filePath))
         findGlobals(contents, fileName, luacCommand, filePath)
       end
     end
