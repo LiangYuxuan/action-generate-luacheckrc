@@ -146,11 +146,7 @@ for packageTypeName, packageType in pairs(packageTypes) do
 
     local formattedPackageName = string.gsub(packageName, '[^%a%d]+', '')
     if string.sub(formattedPackageName, 1, 1):match('%d') then
-<<<<<<< HEAD
       formattedPackageName = 'def' .. formattedPackageName
-=======
-      formattedPackageName .. 'def' .. formattedPackageName
->>>>>>> 7eb3d0b1eb145a7c00aba7cb9c361ccc8ce7ce6c
     end
     print(
       string.format(
