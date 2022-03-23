@@ -70,14 +70,13 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
   if e.tag then
     for _, value in pairs(e.attrs) do
       if parentControlName and value:find('.lua') then
-        local fullPath = path .. '/' .. value
+        local fullPath = (path .. '/' .. value):gsub("\\", '/')
         --print(parentControlName, fullPath)
         if io.open(fullPath, 'r') then
           scripts[parentControlName] = fullPath
         else
-          scripts[parentControlName] = datapath .. 'rulesets/CoreRPG/' .. value
+          scripts[parentControlName] = (datapath .. 'rulesets/CoreRPG/' .. value):gsub("\\", '/')
         end
-        scripts[parentControlName] = scripts[parentControlName]:gsub("\\", '/')
       end
     end
     local controlName
