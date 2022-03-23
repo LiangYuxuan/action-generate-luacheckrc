@@ -6,7 +6,7 @@ local globals_suffix = 'globals'
 -- Datatypes
 local packageTypes = {
   ['rulesets'] = { datapath .. 'rulesets/', 'base.xml' },
-  ['extensions'] = { datapath .. 'extensions/', 'extension.xml' },
+  ['extensions'] = { datapath .. 'extensions/', 'extension.xml', { 'author', 'name' } },
 }
 
 -- Core
@@ -92,11 +92,9 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
 end
 
 local function findInterfaceScripts(path, xmlFile)
-  local doc = parseFile(xmlFile)
-
   local scripts = {}
 
-  for _, xmlEntry in pairs(doc.children) do
+  for _, xmlEntry in pairs(parseFile(xmlFile).children) do
     findScriptsInXml(scripts, path, xmlEntry)
   end
 
@@ -149,6 +147,33 @@ local function findGlobals(output, parent, luac, file)
   return output
 end
 
+local function getAltPackageName(packagePath, altPackageNameCriteria, searchName)
+  local baseXmlFile = findBaseXml(packagePath, searchName)
+
+  local altNameData = {}
+    for _, root in pairs(parseFile(baseXmlFile).children) do
+      if root.tag then
+        for _, entry in ipairs(root.children) do
+          if entry.tag == 'properties' then
+            for _, value in ipairs(entry.children) do
+              for _, altPackageNameCriterion in ipairs(altPackageNameCriteria) do
+                if value.tag == altPackageNameCriterion then
+                  local altName = value.children[1]['text']
+                  altName = altName:gsub('.*: ', ''):gsub('%(.*%)', '')
+                  altNameData[altPackageNameCriterion] = altName
+                end
+                if not altNameData[altPackageNameCriterion] then
+                  altNameData[altPackageNameCriterion] = ''
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    return altNameData['author'] .. altNameData['name']
+end
+
 for packageTypeName, packageType in pairs(packageTypes) do
   local packageList = findAllPackages(packageType[1])
   table.sort(packageList)
@@ -156,16 +181,21 @@ for packageTypeName, packageType in pairs(packageTypes) do
   print(string.format("Searching for %s", packageTypeName))
   lfs.mkdir(datapath .. packageTypeName .. globals_suffix .. '/')
   for _, packageName in pairs(packageList) do
-    local packagePath = datapath .. packageTypeName .. '/'
+    local packageLocation = datapath .. packageTypeName .. '/'
+    local packagePath = packageLocation .. packageName
     print(string.format("Searching %s files for globals", packageName))
 
     local currentBranch = executeCapture(
       string.format(
-        'git -C %s branch --show-current', packagePath .. packageName
+        'git -C %s branch --show-current', packagePath
       )
     )
 
-    local formattedPackageName = string.gsub(packageName, '[^%a%d]+', '')
+    local formattedPackageName = packageName
+    if packageType[3] then
+      formattedPackageName = getAltPackageName(packagePath, packageType[3], packageType[2]) or ''
+    end
+    formattedPackageName = formattedPackageName:gsub('[^%a%d%.]+', '')
     if string.sub(formattedPackageName, 1, 1):match('%d') then
       formattedPackageName = 'def' .. formattedPackageName
     end
@@ -187,7 +217,7 @@ for packageTypeName, packageType in pairs(packageTypes) do
     local destFile = assert(
       io.open(destFilePath, 'w'), "Error opening file " .. destFilePath)
 
-    local baseXmlFile = findBaseXml(packagePath .. packageName, packageType[2])
+    local baseXmlFile = findBaseXml(packagePath, packageType[2])
     local highLevelScripts = findHighLevelScripts(baseXmlFile)
     local contents = {}
     for parent, filePath in pairs(highLevelScripts) do
@@ -195,9 +225,9 @@ for packageTypeName, packageType in pairs(packageTypes) do
       findGlobals(contents, parent, luacCommand, packageType[1] .. packageName .. '/' .. filePath)
     end
 
-    local interfaceScripts = findInterfaceXmls(packagePath .. packageName, packageType[2])
+    local interfaceScripts = findInterfaceXmls(packagePath, packageType[2])
     for _, xmlPath in pairs(interfaceScripts) do
-      local xmlScripts = findInterfaceScripts(packagePath .. packageName, xmlPath)
+      local xmlScripts = findInterfaceScripts(packagePath, xmlPath)
       for fileName, filePath in pairs(xmlScripts) do
         --print(string.format("Handling file at %s", filePath))
         findGlobals(contents, fileName, luacCommand, filePath)

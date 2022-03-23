@@ -50,7 +50,8 @@ end
 for _, packageType in pairs(packageTypes) do
 	local packageFiles = findPackageFiles(packageType[1])
 	for packageName, file in pairs(packageFiles) do
-		destFile:write('\nstds.' .. packageName:lower() .. ' = {\n')
+    local stdsName = ('\nstds.' .. packageName:lower() .. ' = {\n')
+		destFile:write(stdsName)
 		local fhandle = io.open(file, 'r')
 		local content = fhandle:read("*a")
 		for line in string.gmatch(content, '[^\r\n]+') do
