@@ -54,7 +54,8 @@ local function findHighLevelScripts(baseXmlFile)
   local scripts = {}
   for line in string.gmatch(data, '[^\r\n]+') do
     if string.match(line, '<script.+/>') and not string.match(line, '<!--.*<script.+/>.*-->') then
-      local fileName, filePath  = string.match(line, '<script%s*name="(.+)"%s*[ruleset=".*"%s*]*file="(.+)"%s*/>')
+      local sansRuleset = line:gsub('ruleset=".-"%s+', '')
+      local fileName, filePath = sansRuleset:match('<script%s+name="(.+)"%s+file="(.+)"%s*/>')
       if fileName then
         scripts[fileName] = filePath
       end
@@ -63,6 +64,85 @@ local function findHighLevelScripts(baseXmlFile)
 
   fhandle:close()
   return scripts
+end
+
+local function print_table(node)
+  local cache, stack, output = {},{},{}
+  local depth = 1
+  local output_str = "{\n"
+
+  while true do
+      local size = 0
+      for k,v in pairs(node) do
+          size = size + 1
+      end
+
+      local cur_index = 1
+      for k,v in pairs(node) do
+          if (cache[node] == nil) or (cur_index >= cache[node]) then
+
+              if (string.find(output_str,"}",output_str:len())) then
+                  output_str = output_str .. ",\n"
+              elseif not (string.find(output_str,"\n",output_str:len())) then
+                  output_str = output_str .. "\n"
+              end
+
+              -- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+              table.insert(output,output_str)
+              output_str = ""
+
+              local key
+              if (type(k) == "number" or type(k) == "boolean") then
+                  key = "["..tostring(k).."]"
+              else
+                  key = "['"..tostring(k).."']"
+              end
+
+              if (type(v) == "number" or type(v) == "boolean") then
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = "..tostring(v)
+              elseif (type(v) == "table") then
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = {\n"
+                  table.insert(stack,node)
+                  table.insert(stack,v)
+                  cache[node] = cur_index+1
+                  break
+              else
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = '"..tostring(v).."'"
+              end
+
+              if (cur_index == size) then
+                  output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+              else
+                  output_str = output_str .. ","
+              end
+          else
+              -- close the table
+              if (cur_index == size) then
+                  output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+              end
+          end
+
+          cur_index = cur_index + 1
+      end
+
+      if (size == 0) then
+          output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+      end
+
+      if (#stack > 0) then
+          node = stack[#stack]
+          stack[#stack] = nil
+          depth = cache[node] == nil and depth + 1 or depth - 1
+      else
+          break
+      end
+  end
+
+  -- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+  table.insert(output,output_str)
+  output_str = table.concat(output)
+
+  print(output_str)
 end
 
 local parseFile = require('xmlparser').parseFile
@@ -86,6 +166,7 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
       end
     end
     for _, child in ipairs(e.children) do
+      --print_table(child)
       findScriptsInXml(scripts, path, child, controlName)
     end
   end
@@ -108,10 +189,11 @@ local function findInterfaceXmls(path, searchName)
   local data = fhandle:read("*a")
 
   local xmlFiles = {}
-  for line in string.gmatch(data, '[^\r\n]+') do
-    if string.match(line, '<includefile.+/>') and not string.match(line, '<!--.*<includefile.+/>.*-->') then
-      local filePath  = string.match(line, '<includefile%s*[ruleset=".*"%s*]*source="(.+)"%s*/>') or ''
-      local fileName = string.match(filePath, '.+/(.-).xml') or string.match(filePath, '(.-).xml')
+  for line in data:gmatch('[^\r\n]+') do
+    if line:match('<includefile.+/>') and not line:match('<!--.*<includefile.+/>.*-->') then
+      local sansRuleset = line:gsub('ruleset=".-"%s+', '')
+      local filePath  = sansRuleset:match('<includefile%s+source="(.+)"%s*/>') or ''
+      local fileName = filePath:match('.+/(.-).xml') or filePath:match('(.-).xml')
       if fileName then
         xmlFiles[fileName] = path .. '/' .. filePath
       end
@@ -126,12 +208,12 @@ local function findGlobals(output, parent, luac, file)
   executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. file)
   local content = executeCapture(string.format('%s -l -p ' .. file, luac))
 
-  for line in string.gmatch(content, '[^\r\n]+') do
-    if string.match(line, 'SETGLOBAL%s+') and
-    not string.match(line, '%s+;%s+(_)%s*') then
+  for line in content:gmatch('[^\r\n]+') do
+    if line:match('SETGLOBAL%s+') and
+    not line:match('%s+;%s+(_)%s*') then
       local variable = (
         '\t\t' ..
-        string.match(line, '\t; (.+)%s*') ..
+        line:match('\t; (.+)%s*') ..
         ' = {\n' ..
         '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,' ..
         '\n\t\t\t},\n'
@@ -228,9 +310,9 @@ for packageTypeName, packageType in pairs(packageTypes) do
     local interfaceScripts = findInterfaceXmls(packagePath, packageType[2])
     for _, xmlPath in pairs(interfaceScripts) do
       local xmlScripts = findInterfaceScripts(packagePath, xmlPath)
-      for fileName, filePath in pairs(xmlScripts) do
-        --print(string.format("Handling file at %s", filePath))
-        findGlobals(contents, fileName, luacCommand, filePath)
+      for windowObject, filePath in pairs(xmlScripts) do
+        --print(string.format("Handling %s script at %s", windowObject, filePath))
+        findGlobals(contents, windowObject, luacCommand, filePath)
       end
     end
 
