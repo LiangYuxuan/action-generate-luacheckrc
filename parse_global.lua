@@ -91,12 +91,43 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
     end
   end
 end
+local function findTemplatesInXml(scripts, path, e, parentControlName)
+  if e and e.tag then
+    if parentControlName then
+      for _, child in ipairs(e.children) do
+        if child.tag == 'script' and child.attrs and child.attrs.file then
+          local fullPath = (path .. '/' .. child.attrs.file):gsub("\\", '/')
+          if io.open(fullPath, 'r') then
+            scripts[parentControlName] = fullPath
+          else
+            scripts[parentControlName] = (datapath .. 'rulesets/CoreRPG/' .. child.attrs.file):gsub("\\", '/')
+          end
+        end
+      end
+    end
+    local controlName
+    if e.tag == 'template' then
+      for _,attr in ipairs(e.orderedattrs) do
+        if attr.name == 'name' or attr.name == 'file' then
+          controlName = attr.value
+        end
+      end
+    end
+    for _, child in ipairs(e.children) do
+      findTemplatesInXml(scripts, path, child, controlName)
+    end
+  end
+end
 
 local function findInterfaceScripts(path, xmlFile)
   local scripts = {}
 
   for _, xmlEntry in pairs(parseFile(xmlFile).children) do
     findScriptsInXml(scripts, path, xmlEntry)
+  end
+
+  for _, xmlEntry in pairs(parseFile(xmlFile).children) do
+    findTemplatesInXml(scripts, path, xmlEntry)
   end
 
   return scripts
