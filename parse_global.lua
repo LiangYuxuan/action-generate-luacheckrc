@@ -74,9 +74,18 @@ local function findScriptsInXml(scripts, path, e, parentControlName)
         local fullPath = (path .. '/' .. value):gsub("\\", '/')
         --print(parentControlName, fullPath)
         if io.open(fullPath, 'r') then
-          scripts[parentControlName] = fullPath
+          if scripts[parentControlName] then
+            table.insert(scripts[parentControlName], fullPath)
+          else
+            scripts[parentControlName] = { fullPath }
+          end
         else
-          scripts[parentControlName] = (datapath .. 'rulesets/CoreRPG/' .. value):gsub("\\", '/')
+          fullPath = (datapath .. 'rulesets/CoreRPG/' .. value):gsub("\\", '/')
+          if scripts[parentControlName] then
+            table.insert(scripts[parentControlName], fullPath)
+          else
+            scripts[parentControlName] = { fullPath }
+          end
         end
       end
     end
@@ -98,9 +107,18 @@ local function findTemplatesInXml(scripts, path, e, parentControlName)
         if child.tag == 'script' and child.attrs and child.attrs.file then
           local fullPath = (path .. '/' .. child.attrs.file):gsub("\\", '/')
           if io.open(fullPath, 'r') then
-            scripts[parentControlName] = fullPath
+            if scripts[parentControlName] then
+              table.insert(scripts[parentControlName], fullPath:gsub("\\", '/'))
+            else
+              scripts[parentControlName] = { fullPath }
+            end
           else
-            scripts[parentControlName] = (datapath .. 'rulesets/CoreRPG/' .. child.attrs.file):gsub("\\", '/')
+            fullPath = (datapath .. 'rulesets/CoreRPG/' .. child.attrs.file):gsub("\\", '/')
+            if scripts[parentControlName] then
+              table.insert(scripts[parentControlName], fullPath)
+            else
+              scripts[parentControlName] = { fullPath }
+            end
           end
         end
       end
@@ -108,7 +126,7 @@ local function findTemplatesInXml(scripts, path, e, parentControlName)
     local controlName
     if e.tag == 'template' then
       for _,attr in ipairs(e.orderedattrs) do
-        if attr.name == 'name' or attr.name == 'file' then
+        if attr.name == 'name' then
           controlName = attr.value
         end
       end
@@ -261,9 +279,11 @@ for packageTypeName, packageType in pairs(packageTypes) do
     local interfaceScripts = findInterfaceXmls(packagePath, packageType[2])
     for _, xmlPath in pairs(interfaceScripts) do
       local xmlScripts = findInterfaceScripts(packagePath, xmlPath)
-      for windowObject, filePath in pairs(xmlScripts) do
-        --print(string.format("Handling %s script at %s", windowObject, filePath))
-        findGlobals(contents, windowObject, luacCommand, filePath)
+      for windowObject, filePaths in pairs(xmlScripts) do
+        for _, filePath in ipairs(filePaths) do
+          --print(string.format("Handling %s script at %s", windowObject, filePath))
+          findGlobals(contents, windowObject, luacCommand, filePath)
+        end
       end
     end
 
