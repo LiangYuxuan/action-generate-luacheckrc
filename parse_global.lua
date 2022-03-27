@@ -1,3 +1,82 @@
+local function print_table(node)
+  local cache, stack, output = {},{},{}
+  local depth = 1
+  local output_str = "{\n"
+
+  while true do
+      local size = 0
+      for k,v in pairs(node) do
+          size = size + 1
+      end
+
+      local cur_index = 1
+      for k,v in pairs(node) do
+          if (cache[node] == nil) or (cur_index >= cache[node]) then
+
+              if (string.find(output_str,"}",output_str:len())) then
+                  output_str = output_str .. ",\n"
+              elseif not (string.find(output_str,"\n",output_str:len())) then
+                  output_str = output_str .. "\n"
+              end
+
+              -- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+              table.insert(output,output_str)
+              output_str = ""
+
+              local key
+              if (type(k) == "number" or type(k) == "boolean") then
+                  key = "["..tostring(k).."]"
+              else
+                  key = "['"..tostring(k).."']"
+              end
+
+              if (type(v) == "number" or type(v) == "boolean") then
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = "..tostring(v)
+              elseif (type(v) == "table") then
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = {\n"
+                  table.insert(stack,node)
+                  table.insert(stack,v)
+                  cache[node] = cur_index+1
+                  break
+              else
+                  output_str = output_str .. string.rep('\t',depth) .. key .. " = '"..tostring(v).."'"
+              end
+
+              if (cur_index == size) then
+                  output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+              else
+                  output_str = output_str .. ","
+              end
+          else
+              -- close the table
+              if (cur_index == size) then
+                  output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+              end
+          end
+
+          cur_index = cur_index + 1
+      end
+
+      if (size == 0) then
+          output_str = output_str .. "\n" .. string.rep('\t',depth-1) .. "}"
+      end
+
+      if (#stack > 0) then
+          node = stack[#stack]
+          stack[#stack] = nil
+          depth = cache[node] == nil and depth + 1 or depth - 1
+      else
+          break
+      end
+  end
+
+  -- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
+  table.insert(output,output_str)
+  output_str = table.concat(output)
+
+  print(output_str)
+end
+
 -- Config
 local luacCommand = 'luac'
 local datapath = './.fg/'
@@ -66,37 +145,49 @@ local function findHighLevelScripts(baseXmlFile)
   return scripts
 end
 
+local function addScriptToArray(scripts, path, filename, parentControlName)
+  local fullPath = (path .. '/' .. filename):gsub("\\", '/')
+  --print(parentControlName, fullPath)
+  if io.open(fullPath, 'r') then
+    if scripts[parentControlName] then
+      table.insert(scripts[parentControlName], fullPath)
+    else
+      scripts[parentControlName] = { fullPath }
+    end
+  else
+    fullPath = (datapath .. 'rulesets/CoreRPG/' .. filename):gsub("\\", '/')
+    if scripts[parentControlName] then
+      table.insert(scripts[parentControlName], fullPath)
+    else
+      scripts[parentControlName] = { fullPath }
+    end
+  end
+end
+
 local parseFile = require('xmlparser').parseFile
-local function findScriptsInXml(scripts, path, e, parentControlName)
+local function findScriptsInXml(scripts, path, e, parentControl, grandparentControl, grandparentControlIndex)
   if e.tag then
-    for _, value in pairs(e.attrs) do
-      if parentControlName and value:find('.lua') then
-        local fullPath = (path .. '/' .. value):gsub("\\", '/')
-        --print(parentControlName, fullPath)
-        if io.open(fullPath, 'r') then
-          if scripts[parentControlName] then
-            table.insert(scripts[parentControlName], fullPath)
-          else
-            scripts[parentControlName] = { fullPath }
-          end
-        else
-          fullPath = (datapath .. 'rulesets/CoreRPG/' .. value):gsub("\\", '/')
-          if scripts[parentControlName] then
-            table.insert(scripts[parentControlName], fullPath)
-          else
-            scripts[parentControlName] = { fullPath }
-          end
+    if parentControl and e.attrs.file and e.attrs.file:find('.lua') then
+      local parentControlName = parentControl.attrs.name
+        if grandparentControl then
+          local grandparentControlName = grandparentControl.attrs.name
+          addScriptToArray(scripts, path, grandparentControl['children'][1]['children'][grandparentControlIndex]['attrs']['file'], grandparentControl.attrs.name)
         end
+        addScriptToArray(scripts, path, e.attrs.file, parentControlName)
       end
+
+    local control
+    --print_table(e.attrs)
+    --for _,attr in ipairs(e.orderedattrs) do
+    --  if attr.name == 'name' or attr.name == 'file' then
+    --    control = attr
+    --  end
+    --end
+    if e.attrs.name or e.attrs.file then
+      control = e
     end
-    local controlName
-    for _,attr in ipairs(e.orderedattrs) do
-      if attr.name == 'name' or attr.name == 'file' then
-        controlName = attr.value
-      end
-    end
-    for _, child in ipairs(e.children) do
-      findScriptsInXml(scripts, path, child, controlName)
+    for index, child in ipairs(e.children) do
+      findScriptsInXml(scripts, path, child, control, parentControl, index)
     end
   end
 end
@@ -108,7 +199,7 @@ local function findTemplatesInXml(scripts, path, e, parentControlName)
           local fullPath = (path .. '/' .. child.attrs.file):gsub("\\", '/')
           if io.open(fullPath, 'r') then
             if scripts[parentControlName] then
-              table.insert(scripts[parentControlName], fullPath:gsub("\\", '/'))
+              table.insert(scripts[parentControlName], fullPath)
             else
               scripts[parentControlName] = { fullPath }
             end
