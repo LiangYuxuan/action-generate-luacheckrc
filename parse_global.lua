@@ -79,8 +79,8 @@ local parseXmlFile = require('xmlparser').parseFile
 
 -- Datatypes
 local packages = {
-	['rulesets'] = { ['path'] = datapath .. 'rulesets/', ['baseFile'] = 'base.xml', ['definitions'] = {} },
-	['extensions'] = { ['path'] = datapath .. 'extensions/', ['baseFile'] = 'extension.xml', ['definitions'] = {} },
+	['rulesets'] = { ['path'] = datapath .. 'rulesets/', ['baseFile'] = 'base.xml', ['definitions'] = {}, ['packageList'] = {} },
+	['extensions'] = { ['path'] = datapath .. 'extensions/', ['baseFile'] = 'extension.xml', ['definitions'] = {}, ['packageList'] = {} },
 }
 
 --
@@ -252,9 +252,11 @@ local function getFnsFromLuaInXml(fns, string)
 	os.remove(tempFilePath)
 end
 
+-- Searches other rulesets for provided lua file name.
+-- If found, adds to provided table. Package path is prepended to file path.
 local function findAltScriptLocation(templateFunctions, packagePath, filePath)
-	for _, packageName in ipairs(packages.extensions.packageList) do
-		if packageName ~= altPackagePath[4] then
+	for _, packageName in ipairs(packages.rulesets.packageList) do
+		if packageName ~= packagePath[4] then
 			local altPackagePath = packagePath
 			altPackagePath[4] = packageName
 			findGlobals(templateFunctions, altPackagePath, filePath)
@@ -303,59 +305,64 @@ end
 
 -- When supplied with a lua-xmlparser table for the <script> element,
 -- this function adds any functions from it into a supplied table.
-local function getScriptFromXml(output, packagePath, element)
-	local script = findXmlElement(parent, { 'script' })
+local function getScriptFromXml(output, packagePath, parent, script)
+	local fns = {}
+	if script.attrs.file then
+		if not findGlobals(fns, packagePath, script.attrs.file) then
+			findAltScriptLocation(fns, packagePath, script.attrs.file)
+		end
+	elseif script.children[1].text then
+		getFnsFromLuaInXml(fns, script.children[1].text)
+	end
+	output[parent.attrs.name] = { ['functions'] = fns }
+end
+
+local function addTemplateFunctions(packageDefinition, templateDefintion)
+	if packageDefinition and templateDefintion then
+		for fn, _ in pairs(templateDefintion['functions']) do
+			packageDefinition['functions'][fn] = true
+		end
+	end
+end
+
+local function xmlScriptSearch(packageDefinitions, packagePath, sheetdata, templates)
+	for _, element in ipairs(sheetdata.children) do
+		local script = findXmlElement(element, { 'script' })
+		if script then
+			getScriptFromXml(packageDefinitions, packagePath, element, script)
+			addTemplateFunctions(packageDefinitions[element.attrs.name], templates[element.tag])
+		end
+	end
+end
+
+-- Searches provided element for lua script definition and adds to provided table
+-- If file search within package is unsuccessful, it calls findAltScriptLocation to search all rulesets
+local function getWindowclassScript(packageDefinitions, packagePath, element)
+	local script = findXmlElement(element, { 'script' })
 	if script then
 		local fns = {}
 		if script.attrs.file then
 			if not findGlobals(fns, packagePath, script.attrs.file) then
-				local altPackagePath = packagePath
-				altPackagePath[4] = 'CoreRPG'
-				findGlobals(fns, altPackagePath, script.attrs.file)
+				findAltScriptLocation(fns, packagePath, script.attrs.file)
 			end
 		elseif script.children[1].text then
 			getFnsFromLuaInXml(fns, script.children[1].text)
 		end
-		output[element.attrs.name] = { ['functions'] = fns }
+		packageDefinitions[element.attrs.name] = fns
 	end
 end
 
-local function recursiveXmlSearch(packageDefinitions, packagePath, parent, templates)
-	for _, element in ipairs(parent.children) do
-		local script = findXmlElement(element, { 'script' })
-		if script then
-			getScriptFromXml(packageDefinitions, packagePath, parent, element)
-		elseif element.children then
-			recursiveXmlSearch(packageDefinitions, packagePath, element, templates)
-		end
-	end
-end
-
-local function getWindowclassScript(packageDefinitions, packagePath, element)
-	local script = findXmlElement(element, { 'script' })
-	if script then
-		local functions = {}
-		if script.attrs.file then
-			if not findGlobals(functions, packagePath, script.attrs.file) then
-				local altPackagePath = packagePath
-				altPackagePath[4] = 'CoreRPG'
-				findGlobals(functions, altPackagePath, script.attrs.file)
-			end
-			elseif script.children[1].text then
-			getFnsFromLuaInXml(functions, script.children[1].text)
-		end
-		packageDefinitions[element.attrs.name] = functions
-	end
-end
+-- Searches a provided table of XML files for script definitions.
+-- If element is windowclass, call getWindowclassScript.
+-- If element is not a template, call xmlScriptSearch
 local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath)
-	for _, xmlPath in pairs(xmlFiles) do
-		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
+	for _, xmlPath in pairs(xmlFiles) do -- iterate through provided files
+		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' }) -- use first root element
 		for _, element in ipairs(root.children) do
-			if element.tag == 'windowclass' then -- save windowclass scripts
+			if element.tag == 'windowclass' then -- iterate through each windowclass
 				getWindowclassScript(packageDefinitions, packagePath, element)
-			elseif element.tag ~= 'template' then -- ignore templates and search through rest of file hierarchy recursively
-				local sheetdata = findXmlElement(element, { 'sheetdata' })
-				if sheetdata then recursiveXmlSearch(packageDefinitions, packagePath, sheetdata, templates) end
+				local sheetdata = findXmlElement(element, { 'sheetdata' }) -- use first sheetdata element
+				if element.attrs.name == 'npc_spells' and sheetdata then xmlScriptSearch(packageDefinitions, packagePath, sheetdata, templates) end
 			end
 		end
 	end
@@ -385,8 +392,6 @@ end
 local templates = {}
 -- Iterate through package types defined in packageTypes
 for packageTypeName, packageTypeData in pairs(packages) do
-	packageTypeData.packageList = {}
-
 	print(string.format('Searching for %s', packageTypeName))
 	findAllPackages(packageTypeData.packageList, packageTypeData['path'])
 
@@ -406,6 +411,8 @@ for packageTypeName, packageTypeData in pairs(packages) do
 		matchRelationshipScripts(templates)
 
 		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath)
-		print_table(packageTypeData['definitions'][shortPackageName])
+		if packageTypeData['definitions'][shortPackageName] then
+			print_table(packageTypeData['definitions'][shortPackageName])
+		end
 	end
 end
