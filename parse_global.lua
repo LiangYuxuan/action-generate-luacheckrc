@@ -1,76 +1,3 @@
-local function print_table(node)
-	local cache, stack, output = {}, {}, {}
-	local depth = 1
-	local output_str = '{\n'
-
-	while true do
-		local size = 0
-		for k, v in pairs(node) do size = size + 1 end
-
-		local cur_index = 1
-		for k, v in pairs(node) do
-			if (cache[node] == nil) or (cur_index >= cache[node]) then
-
-				if (string.find(output_str, '}', output_str:len())) then
-					output_str = output_str .. ',\n'
-				elseif not (string.find(output_str, '\n', output_str:len())) then
-					output_str = output_str .. '\n'
-				end
-
-				-- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
-				table.insert(output, output_str)
-				output_str = ''
-
-				local key
-				if (type(k) == 'number' or type(k) == 'boolean') then
-					key = '[' .. tostring(k) .. ']'
-				else
-					key = '[\'' .. tostring(k) .. '\']'
-				end
-
-				if (type(v) == 'number' or type(v) == 'boolean') then
-					output_str = output_str .. string.rep('\t', depth) .. key .. ' = ' .. tostring(v)
-				elseif (type(v) == 'table') then
-					output_str = output_str .. string.rep('\t', depth) .. key .. ' = {\n'
-					table.insert(stack, node)
-					table.insert(stack, v)
-					cache[node] = cur_index + 1
-					break
-				else
-					output_str = output_str .. string.rep('\t', depth) .. key .. ' = \'' .. tostring(v) .. '\''
-				end
-
-				if (cur_index == size) then
-					output_str = output_str .. '\n' .. string.rep('\t', depth - 1) .. '}'
-				else
-					output_str = output_str .. ','
-				end
-			else
-				-- close the table
-				if (cur_index == size) then output_str = output_str .. '\n' .. string.rep('\t', depth - 1) .. '}' end
-			end
-
-			cur_index = cur_index + 1
-		end
-
-		if (size == 0) then output_str = output_str .. '\n' .. string.rep('\t', depth - 1) .. '}' end
-
-		if (#stack > 0) then
-			node = stack[#stack]
-			stack[#stack] = nil
-			depth = cache[node] == nil and depth + 1 or depth - 1
-		else
-			break
-		end
-	end
-
-	-- This is necessary for working with HUGE tables otherwise we run out of memory using concat on huge strings
-	table.insert(output, output_str)
-	output_str = table.concat(output)
-
-	print(output_str)
-end
-
 local datapath = './.fg/'
 
 -- Dependencies
@@ -251,7 +178,7 @@ end
 -- Searches a provided table of XML files for script definitions.
 -- If element is windowclass, call getWindowclassScript.
 -- If element is not a template, call xmlScriptSearch
-local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath)
+local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath, shortPackageName)
 
 	-- Checks the first level of the provided xml data table for an element with the
 	-- tag 'script'. If found, it calls getScriptFromXml to map its globals and then calls
@@ -277,6 +204,7 @@ local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, pac
 			packageDefinitions[parent.attrs.name] = fns
 		end
 
+		print(string.format('Integrating templates into interface object definitions in %s.', shortPackageName))
 		for _, element in ipairs(sheetdata.children) do
 			local script = findXmlElement(element, { 'script' })
 			if script then
@@ -448,25 +376,29 @@ for packageTypeName, packageTypeData in pairs(packages) do
 	findAllPackages(packageTypeData.packageList, packageTypeData['path'])
 
 	for _, packageName in ipairs(packageTypeData.packageList) do
-		print(string.format('Found %s.', packageName))
+		print(string.format('Found %s. Getting details.', packageName))
 		local packagePath = { datapath, packageTypeName, '/', packageName }
 		local baseXmlFile = findBaseXml(packagePath, packageTypeData['baseFile'])
-
 		local shortPackageName = getPackageName(baseXmlFile, packageName)
-		print(string.format('Creating definition entry %s.', shortPackageName))
 
+		print(string.format('Creating definition entry %s.', shortPackageName))
 		packageTypeData['definitions'][shortPackageName] = {}
 
+		print(string.format('Finding interface XML files in %s.', shortPackageName))
 		local interfaceXmlFiles = {}
 		findXmls(interfaceXmlFiles, baseXmlFile, packagePath)
 
+		print(string.format('Determining templates for %s.', shortPackageName))
 		findTemplateRelationships(templates, packagePath, interfaceXmlFiles)
 		matchRelationshipScripts(templates)
 
-		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath)
+		print(string.format('Finding scripts attached to interface objects for %s.', shortPackageName))
+		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath, shortPackageName)
 
+		print(string.format('Finding named scripts in %s.', shortPackageName))
 		findNamedLuaScripts(packageTypeData['definitions'][shortPackageName], baseXmlFile, packagePath)
 
+		print(string.format('Writing definitions for %s.\n', shortPackageName))
 		writeDefinitionsToFile(packageTypeData['definitions'], shortPackageName)
 	end
 end
