@@ -123,15 +123,21 @@ end
 
 -- Calls luac and find included SETGLOBAL commands
 -- Adds them to supplied table 'globals'
-local function findGlobals(globals, file)
-	executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. file)
-	local content = executeCapture(string.format('%s -l -p ' .. file, 'luac'))
+local function findGlobals(globals, directory, file)
+	local concatPath = table.concat(directory) .. '/' .. file
 
-	for line in content:gmatch('[^\r\n]+') do
-		if line:match('SETGLOBAL%s+') and not line:match('%s+;%s+(_)%s*') then
-			local globalName = line:match('\t; (.+)%s*')
-			globals[globalName] = true
+	if lfs.touch(concatPath) then
+		executeCapture('perl -e \'s/\\xef\\xbb\\xbf//;\' -pi ' .. concatPath)
+		local content = executeCapture(string.format('%s -l -p ' .. concatPath, 'luac'))
+
+		for line in content:gmatch('[^\r\n]+') do
+			if line:match('SETGLOBAL%s+') and not line:match('%s+;%s+(_)%s*') then
+				local globalName = line:match('\t; (.+)%s*')
+				globals[globalName] = true
+			end
 		end
+
+		return true
 	end
 end
 
@@ -152,8 +158,9 @@ end
 -- Searches for file by name in supplied directory
 -- Returns string in format of 'original_path/file_result'
 local function findBaseXml(path, searchName)
-	for file in lfs.dir(path) do
-		local filePath = path .. '/' .. file
+	local concatPath = table.concat(path)
+	for file in lfs.dir(concatPath) do
+		local filePath = concatPath .. '/' .. file
 		local fileType = lfs.attributes(filePath, 'mode')
 		if fileType == 'file' and string.find(file, searchName) then return filePath end
 	end
@@ -214,13 +221,15 @@ end
 local function findXmls(baseXmlFile, path)
 	local data = loadFile(baseXmlFile)
 
+	local concatPath = table.concat(path)
+
 	local xmlFiles = {}
 	for line in data:gmatch('[^\r\n]+') do
 		if line:match('<includefile.+/>') and not line:match('<!--.*<includefile.+/>.*-->') then
 			local sansRuleset = line:gsub('ruleset=".-"%s+', '')
 			local filePath = sansRuleset:match('<includefile%s+source="(.+)"%s*/>') or ''
 			local fileName = filePath:match('.+/(.-).xml') or filePath:match('(.-).xml')
-			if fileName then xmlFiles[fileName] = path .. '/' .. filePath end
+			if fileName then xmlFiles[fileName] = concatPath .. '/' .. filePath end
 		end
 	end
 
@@ -238,9 +247,19 @@ local function getFnsFromLuaInXml(fns, string)
 	tempFile:write(script)
 	tempFile:close()
 
-	findGlobals(fns, tempFilePath)
+	findGlobals(fns, { datapath }, 'xmlscript.tmp')
 
 	os.remove(tempFilePath)
+end
+
+local function findAltScriptLocation(templateFunctions, packagePath, filePath)
+	for _, packageName in ipairs(packages.extensions.packageList) do
+		if packageName ~= altPackagePath[4] then
+			local altPackagePath = packagePath
+			altPackagePath[4] = packageName
+			findGlobals(templateFunctions, altPackagePath, filePath)
+		end
+	end
 end
 
 -- When supplied with a lua-xmlparser table for the <script> element of a template,
@@ -250,7 +269,9 @@ local function getTemplateScriptFromXml(templates, packagePath, parent, element)
 	if script then
 		local templateFunctions = {}
 		if script.attrs.file then
-			findGlobals(templateFunctions, packagePath .. '/' .. (script.attrs.file))
+			if not findGlobals(templateFunctions, packagePath, script.attrs.file) then
+				findAltScriptLocation(templateFunctions, packagePath, script.attrs.file)
+			end
 		elseif script.children[1].text then
 			getFnsFromLuaInXml(templateFunctions, script.children[1].text)
 		end
@@ -287,7 +308,11 @@ local function getScriptFromXml(output, packagePath, element)
 	if script then
 		local fns = {}
 		if script.attrs.file then
-			findGlobals(fns, packagePath .. '/' .. (script.attrs.file))
+			if not findGlobals(fns, packagePath, script.attrs.file) then
+				local altPackagePath = packagePath
+				altPackagePath[4] = 'CoreRPG'
+				findGlobals(fns, altPackagePath, script.attrs.file)
+			end
 		elseif script.children[1].text then
 			getFnsFromLuaInXml(fns, script.children[1].text)
 		end
@@ -306,19 +331,28 @@ local function recursiveXmlSearch(packageDefinitions, packagePath, parent, templ
 	end
 end
 
+local function getWindowclassScript(packageDefinitions, packagePath, element)
+	local script = findXmlElement(element, { 'script' })
+	if script then
+		local functions = {}
+		if script.attrs.file then
+			if not findGlobals(functions, packagePath, script.attrs.file) then
+				local altPackagePath = packagePath
+				altPackagePath[4] = 'CoreRPG'
+				findGlobals(functions, altPackagePath, script.attrs.file)
+			end
+			elseif script.children[1].text then
+			getFnsFromLuaInXml(functions, script.children[1].text)
+		end
+		packageDefinitions[element.attrs.name] = functions
+	end
+end
 local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath)
 	for _, xmlPath in pairs(xmlFiles) do
 		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
 		for _, element in ipairs(root.children) do
 			if element.tag == 'windowclass' then -- save windowclass scripts
-				local script = findXmlElement(element, { 'script' })
-				if script then
-					if script.attrs.file then
-						findGlobals(packageDefinitions, packagePath .. '/' .. (script.attrs.file))
-					elseif script.children[1].text then
-						getFnsFromLuaInXml(packageDefinitions, script.children[1].text)
-					end
-				end
+				getWindowclassScript(packageDefinitions, packagePath, element)
 			elseif element.tag ~= 'template' then -- ignore templates and search through rest of file hierarchy recursively
 				local sheetdata = findXmlElement(element, { 'sheetdata' })
 				if sheetdata then recursiveXmlSearch(packageDefinitions, packagePath, sheetdata, templates) end
@@ -345,20 +379,20 @@ local function findHighLevelScripts(baseXmlFile)
 end
 
 --
--- MAIN CODE
+-- MAIN CHUNK
 --
 
 local templates = {}
 -- Iterate through package types defined in packageTypes
 for packageTypeName, packageTypeData in pairs(packages) do
-	local packageList = {}
+	packageTypeData.packageList = {}
 
 	print(string.format('Searching for %s', packageTypeName))
-	findAllPackages(packageList, packageTypeData['path'])
+	findAllPackages(packageTypeData.packageList, packageTypeData['path'])
 
-	for _, packageName in ipairs(packageList) do
+	for _, packageName in ipairs(packageTypeData.packageList) do
 		print(string.format('Found %s.', packageName))
-		local packagePath = datapath .. packageTypeName .. '/' .. packageName
+		local packagePath = { datapath, packageTypeName, '/', packageName }
 		local baseXmlFile = findBaseXml(packagePath, packageTypeData['baseFile'])
 
 		local shortPackageName = getPackageName(baseXmlFile, packageName)
