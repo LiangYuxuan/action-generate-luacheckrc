@@ -97,6 +97,19 @@ local packages = {
 -- General Functions (called from multiple places)
 --
 
+-- Opens a file and returns the contents as a string
+local function loadFile(file)
+	local fhandle = io.open(file, 'r')
+	local string
+
+	if fhandle then
+		string = fhandle:read('*a')
+		fhandle:close()
+	end
+
+	return string
+end
+
 -- Calls luac and find included SETGLOBAL commands
 -- Adds them to supplied table 'globals'
 local function findGlobals(globals, directory, file)
@@ -182,38 +195,57 @@ end
 -- Main Functions (called from Main Chunk)
 --
 
+-- 
 local function writeDefinitionsToFile(defintitions, package)
-	local function writeSubdefintions(fns)
-		local output = '\t\t'
 
-		for fn, _ in pairs(fns) do
-			output = output .. fn .. ' = {\n' .. '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,\n\t\t\t},\n'
+	-- 
+	local function gatherChildFunctions(output)
+
+		-- 
+		local function writeSubdefintions(fns)
+			local output = ''
+
+			for fn, _ in pairs(fns) do
+				output = output .. '\t\t' .. fn .. ' = {\n\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,\n\t\t\t},\n\t'
+			end
+
+			return output
 		end
 
-		output = output .. ' = {\n' .. '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,\n\t\t\t},\n'
-
-		print(output)
-		return output
+		for parent, fns in pairs(defintitions[package]) do
+			local global = (parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. writeSubdefintions(fns) ..
+							               '\t},\n\t},')
+			table.insert(output, global)
+		end
+		table.sort(output)
 	end
+
+	local output = {}
+	gatherChildFunctions(output)
 
 	local dir = datapath .. 'globals/'
 	lfs.mkdir(dir)
 	local filePath = dir .. package .. '.luacheckrc_std'
 	local destFile = assert(io.open(filePath, 'w'), 'Error opening file ' .. filePath)
+	destFile:write('globals = {\n')
+	for _, var in ipairs(output) do destFile:write('\t' .. var .. '\n') end
 
-	local output = {}
-	for parent, fns in pairs(defintitions[package]) do
-		local global = (parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. writeSubdefintions(fns) ..
-						               '\t\t},\n\t},')
-		table.insert(output, global)
+	destFile:write('\n},\n')
+	destFile:close()
+end
+
+-- Search through a supplied fantasygrounds xml file to find other defined xml files.
+local function findNamedLuaScripts(definitions, baseXmlFile, packagePath)
+	local root = findXmlElement(parseXmlFile(baseXmlFile), { 'root' })
+	if root then
+		for _, element in ipairs(root.children) do
+			if element.tag == 'script' then
+				local fns = {}
+				findGlobals(fns, packagePath, element.attrs.file)
+				definitions[element.attrs.name] = fns
+			end
+		end
 	end
-	table.sort(output)
-
-	-- destFile:write('globals = {\n')
-	-- for _, var in ipairs(output) do destFile:write('\t' .. var .. '\n') end
-
-	-- destFile:write('}\n')
-	-- destFile:close()
 end
 
 -- Searches a provided table of XML files for script definitions.
@@ -242,15 +274,15 @@ local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, pac
 			elseif script.children[1].text then
 				getFnsFromLuaInXml(fns, script.children[1].text)
 			end
-			packageDefinitions[parent.attrs.name] = { ['functions'] = fns }
+			packageDefinitions[parent.attrs.name] = fns
 		end
 
 		for _, element in ipairs(sheetdata.children) do
 			local script = findXmlElement(element, { 'script' })
 			if script then
 				getScriptFromXml(element, script)
-				if templates[element.tag] then
-					insertTableKeys(packageDefinitions[element.attrs.name]['functions'], templates[element.tag]['functions'])
+				if templates[element.tag] and packageDefinitions[element.attrs.name] then
+					insertTableKeys(packageDefinitions[element.attrs.name], templates[element.tag])
 				end
 			end
 		end
@@ -327,36 +359,17 @@ local function findTemplateRelationships(templates, packagePath, xmlFiles)
 end
 
 -- Search through a supplied fantasygrounds xml file to find other defined xml files.
-local function findXmls(baseXmlFile, path)
+local function findXmls(xmlFiles, xmlDefinitionsPath, packagePath)
+	local data = loadFile(xmlDefinitionsPath)
 
-	-- Opens a file and returns the contents as a string
-	local function loadFile(file)
-		local fhandle = io.open(file, 'r')
-		local string
-
-		if fhandle then
-			string = fhandle:read('*a')
-			fhandle:close()
-		end
-
-		return string
-	end
-
-	local data = loadFile(baseXmlFile)
-
-	local concatPath = table.concat(path)
-
-	local xmlFiles = {}
 	for line in data:gmatch('[^\r\n]+') do
 		if line:match('<includefile.+/>') and not line:match('<!--.*<includefile.+/>.*-->') then
 			local sansRuleset = line:gsub('ruleset=".-"%s+', '')
 			local filePath = sansRuleset:match('<includefile%s+source="(.+)"%s*/>') or ''
 			local fileName = filePath:match('.+/(.-).xml') or filePath:match('(.-).xml')
-			if fileName then xmlFiles[fileName] = concatPath .. '/' .. filePath end
+			if fileName then xmlFiles[fileName] = table.concat(packagePath) .. '/' .. filePath end
 		end
 	end
-
-	return xmlFiles
 end
 
 -- Determine best package name
@@ -365,7 +378,7 @@ local function getPackageName(baseXmlFile, packageName)
 
 	-- Reads supplied XML file to find name and author definitions.
 	-- Returns a simplified string to identify the extension
-	local function getSimpleName(baseXmlFile)
+	local function getSimpleName()
 
 		-- Trims package name to prevent issues with luacheckrc
 		local function simplifyText(text)
@@ -389,7 +402,7 @@ local function getPackageName(baseXmlFile, packageName)
 
 		return table.concat(altName)
 	end
-	local shortPackageName = getSimpleName(baseXmlFile)
+	local shortPackageName = getSimpleName()
 
 	if shortPackageName == '' then shortPackageName = packageName end
 
@@ -444,12 +457,15 @@ for packageTypeName, packageTypeData in pairs(packages) do
 
 		packageTypeData['definitions'][shortPackageName] = {}
 
-		local interfaceXmlFiles = findXmls(baseXmlFile, packagePath)
+		local interfaceXmlFiles = {}
+		findXmls(interfaceXmlFiles, baseXmlFile, packagePath)
 
 		findTemplateRelationships(templates, packagePath, interfaceXmlFiles)
 		matchRelationshipScripts(templates)
 
 		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath)
+
+		findNamedLuaScripts(packageTypeData['definitions'][shortPackageName], baseXmlFile, packagePath)
 
 		writeDefinitionsToFile(packageTypeData['definitions'], shortPackageName)
 	end
