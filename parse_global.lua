@@ -79,51 +79,38 @@ local parseXmlFile = require('xmlparser').parseFile
 
 -- Datatypes
 local packages = {
-	['rulesets'] = { ['path'] = datapath .. 'rulesets/', ['baseFile'] = 'base.xml', ['definitions'] = {}, ['packageList'] = {} },
-	['extensions'] = { ['path'] = datapath .. 'extensions/', ['baseFile'] = 'extension.xml', ['definitions'] = {}, ['packageList'] = {} },
+	['rulesets'] = {
+		['path'] = datapath .. 'rulesets/',
+		['baseFile'] = 'base.xml',
+		['definitions'] = {},
+		['packageList'] = {},
+	},
+	['extensions'] = {
+		['path'] = datapath .. 'extensions/',
+		['baseFile'] = 'extension.xml',
+		['definitions'] = {},
+		['packageList'] = {},
+	},
 }
 
 --
--- Functions
+-- General Functions (called from multiple places)
 --
-
-local function executeCapture(command)
-	local file = assert(io.popen(command, 'r'))
-	local str = assert(file:read('*a'))
-	str = string.gsub(str, '^%s+', '')
-	str = string.gsub(str, '%s+$', '')
-
-	file:close()
-	return str
-end
-
--- Converts XML escaped strings into the base characters.
--- &gt; to >, for example. This allows the lua parser to handle it correctly.
-local function convertXmlEscapes(string)
-	string = string:gsub('&amp;', '&')
-	string = string:gsub('&quot;', '"')
-	string = string:gsub('&apos;', '\'')
-	string = string:gsub('&lt;', '<')
-	string = string:gsub('&gt;', '>')
-	return string
-end
-
--- Opens a file and returns the contents as a string
-local function loadFile(file)
-	local fhandle = io.open(file, 'r')
-	local string
-
-	if fhandle then
-		string = fhandle:read('*a')
-		fhandle:close()
-	end
-
-	return string
-end
 
 -- Calls luac and find included SETGLOBAL commands
 -- Adds them to supplied table 'globals'
 local function findGlobals(globals, directory, file)
+
+	local function executeCapture(command)
+		local file = assert(io.popen(command, 'r'))
+		local str = assert(file:read('*a'))
+		str = string.gsub(str, '^%s+', '')
+		str = string.gsub(str, '%s+$', '')
+
+		file:close()
+		return str
+	end
+
 	local concatPath = table.concat(directory) .. '/' .. file
 
 	if lfs.touch(concatPath) then
@@ -141,33 +128,8 @@ local function findGlobals(globals, directory, file)
 	end
 end
 
--- Searches for directories in supplied path
--- Adds them to supplied table 'list' and sorts the table
-local function findAllPackages(list, path)
-	lfs.mkdir(path) -- if not found, create path to avoid errors
-
-	for file in lfs.dir(path) do
-		if lfs.attributes(path .. '/' .. file, 'mode') == 'directory' then
-			if file ~= '.' and file ~= '..' then table.insert(list, file) end
-		end
-	end
-
-	table.sort(list)
-end
-
--- Searches for file by name in supplied directory
--- Returns string in format of 'original_path/file_result'
-local function findBaseXml(path, searchName)
-	local concatPath = table.concat(path)
-	for file in lfs.dir(concatPath) do
-		local filePath = concatPath .. '/' .. file
-		local fileType = lfs.attributes(filePath, 'mode')
-		if fileType == 'file' and string.find(file, searchName) then return filePath end
-	end
-end
-
--- Checks child elements for matching tag name
--- If found, returns a table of that child element
+-- Checks next level of XML data table for  elements matching a supplied tag name
+-- If found, returns the XML data table of that child element
 local function findXmlElement(root, searchStrings)
 	if root and root.children then
 		for _, xmlElement in ipairs(root.children) do
@@ -176,69 +138,21 @@ local function findXmlElement(root, searchStrings)
 	end
 end
 
--- Trims package name to prevent issues with luacheckrc
-local function trimPackageName(text)
-	text = text:gsub('.+:', '') -- remove prefix
-	text = text:gsub('%(.+%)', '') -- remove parenthetical
-	text = text:gsub('%W', '') -- remove non alphanumeric
-	return text
-end
-
--- Reads supplied XML file to find name and author definitions.
--- Returns a simplified string to identify the extension
-local function getAltPackageName(baseXmlFile)
-	local altName = { '' }
-
-	local xmlRoot = findXmlElement(parseXmlFile(baseXmlFile), { 'root' })
-	local xmlProperties = findXmlElement(xmlRoot, { 'properties' })
-	if xmlProperties then
-		for _, element in ipairs(xmlProperties.children) do
-			if element.tag == 'name' or element.tag == 'author' then
-				table.insert(altName, trimPackageName(element.children[1]['text']))
-			end
-		end
-	end
-
-	table.sort(altName)
-
-	return table.concat(altName)
-end
-
--- Determine best package name
--- Returns as a lowercase string
-local function getPackageName(baseXmlFile, packageName)
-	local shortPackageName = getAltPackageName(baseXmlFile)
-
-	if shortPackageName == '' then shortPackageName = packageName end
-
-	-- prepend 'def' if 1st character isn't a-z
-	if string.sub(shortPackageName, 1, 1):match('%A') then shortPackageName = 'def' .. shortPackageName end
-
-	return shortPackageName:lower()
-end
-
--- Search through a supplied fantasygrounds xml file to find other defined xml files.
-local function findXmls(baseXmlFile, path)
-	local data = loadFile(baseXmlFile)
-
-	local concatPath = table.concat(path)
-
-	local xmlFiles = {}
-	for line in data:gmatch('[^\r\n]+') do
-		if line:match('<includefile.+/>') and not line:match('<!--.*<includefile.+/>.*-->') then
-			local sansRuleset = line:gsub('ruleset=".-"%s+', '')
-			local filePath = sansRuleset:match('<includefile%s+source="(.+)"%s*/>') or ''
-			local fileName = filePath:match('.+/(.-).xml') or filePath:match('(.-).xml')
-			if fileName then xmlFiles[fileName] = concatPath .. '/' .. filePath end
-		end
-	end
-
-	return xmlFiles
-end
-
 -- Calls findGlobals for lua functions in XML-formatted string
 -- Creates temp file, writes string to it, calls findGlobals, deletes temp file
 local function getFnsFromLuaInXml(fns, string)
+
+	-- Converts XML escaped strings into the base characters.
+	-- &gt; to >, for example. This allows the lua parser to handle it correctly.
+	local function convertXmlEscapes(string)
+		string = string:gsub('&amp;', '&')
+		string = string:gsub('&quot;', '"')
+		string = string:gsub('&apos;', '\'')
+		string = string:gsub('&lt;', '<')
+		string = string:gsub('&gt;', '>')
+		return string
+	end
+
 	local tempFilePath = datapath .. 'xmlscript.tmp'
 	tempFile = assert(io.open(tempFilePath, 'w'), 'Error opening file ' .. tempFilePath)
 
@@ -264,31 +178,109 @@ local function findAltScriptLocation(templateFunctions, packagePath, filePath)
 	end
 end
 
--- When supplied with a lua-xmlparser table for the <script> element of a template,
--- this function adds any functions from it into a supplied table.
-local function getTemplateScriptFromXml(templates, packagePath, parent, element)
-	local script = findXmlElement(parent, { 'script' })
-	if script then
-		local templateFunctions = {}
-		if script.attrs.file then
-			if not findGlobals(templateFunctions, packagePath, script.attrs.file) then
-				findAltScriptLocation(templateFunctions, packagePath, script.attrs.file)
-			end
-		elseif script.children[1].text then
-			getFnsFromLuaInXml(templateFunctions, script.children[1].text)
+--
+-- Main Functions (called from Main Chunk)
+--
+
+local function writeDefinitionsToFile(defintitions, package)
+	local function writeSubdefintions(fns)
+		local output = '\t\t'
+
+		for fn, _ in pairs(fns) do
+			output = output .. fn .. ' = {\n' .. '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,\n\t\t\t},\n'
 		end
-		templates[element.attrs.name] = { ['inherit'] = parent.tag, ['functions'] = templateFunctions }
+
+		output = output .. ' = {\n' .. '\t\t\t\tread_only = false,\n\t\t\t\tother_fields = false,\n\t\t\t},\n'
+
+		print(output)
+		return output
 	end
+
+	local dir = datapath .. 'globals/'
+	lfs.mkdir(dir)
+	local filePath = dir .. package .. '.luacheckrc_std'
+	local destFile = assert(io.open(filePath, 'w'), 'Error opening file ' .. filePath)
+
+	local output = {}
+	for parent, fns in pairs(defintitions[package]) do
+		local global = (parent .. ' = {\n\t\tread_only = false,\n\t\tfields = {\n\t' .. writeSubdefintions(fns) ..
+						               '\t\t},\n\t},')
+		table.insert(output, global)
+	end
+	table.sort(output)
+
+	-- destFile:write('globals = {\n')
+	-- for _, var in ipairs(output) do destFile:write('\t' .. var .. '\n') end
+
+	-- destFile:write('}\n')
+	-- destFile:close()
 end
 
-local function findTemplateRelationships(templates, packagePath, xmlFiles)
-	for _, xmlPath in pairs(xmlFiles) do
-		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
-		for _, element in ipairs(root.children) do
-			if element.tag == 'template' then
-				for _, template in ipairs(element.children) do
-					getTemplateScriptFromXml(templates, packagePath, template, element)
+-- Searches a provided table of XML files for script definitions.
+-- If element is windowclass, call getWindowclassScript.
+-- If element is not a template, call xmlScriptSearch
+local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath)
+
+	-- Checks the first level of the provided xml data table for an element with the
+	-- tag 'script'. If found, it calls getScriptFromXml to map its globals and then calls
+	-- insertTableKeys to add any inherited template functions.
+	local function xmlScriptSearch(sheetdata)
+
+		-- Copies keys from sourceTable to destinationTable with boolean value true
+		local function insertTableKeys(sourceTable, destinationTable)
+			for fn, _ in pairs(destinationTable) do sourceTable[fn] = true end
+		end
+
+		-- When supplied with a lua-xmlparser table for the <script> element,
+		-- this function adds any functions from it into a supplied table.
+		local function getScriptFromXml(parent, script)
+			local fns = {}
+			if script.attrs.file then
+				if not findGlobals(fns, packagePath, script.attrs.file) then
+					findAltScriptLocation(fns, packagePath, script.attrs.file)
 				end
+			elseif script.children[1].text then
+				getFnsFromLuaInXml(fns, script.children[1].text)
+			end
+			packageDefinitions[parent.attrs.name] = { ['functions'] = fns }
+		end
+
+		for _, element in ipairs(sheetdata.children) do
+			local script = findXmlElement(element, { 'script' })
+			if script then
+				getScriptFromXml(element, script)
+				if templates[element.tag] then
+					insertTableKeys(packageDefinitions[element.attrs.name]['functions'], templates[element.tag]['functions'])
+				end
+			end
+		end
+	end
+
+	-- Searches provided element for lua script definition and adds to provided table
+	-- If file search within package is unsuccessful, it calls findAltScriptLocation to search all rulesets
+	-- Finally, it adds the discovered functions to PackageDefintions under the key of the UI object name.
+	local function getWindowclassScript(element)
+		local script = findXmlElement(element, { 'script' })
+		if script then
+			local fns = {}
+			if script.attrs.file then
+				if not findGlobals(fns, packagePath, script.attrs.file) then
+					findAltScriptLocation(fns, packagePath, script.attrs.file)
+				end
+			elseif script.children[1].text then
+				getFnsFromLuaInXml(fns, script.children[1].text)
+			end
+			packageDefinitions[element.attrs.name] = fns
+		end
+	end
+
+	for _, xmlPath in pairs(xmlFiles) do -- iterate through provided files
+		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' }) -- use first root element
+		for _, element in ipairs(root.children) do
+			if element.tag == 'windowclass' then -- iterate through each windowclass
+				getWindowclassScript(element)
+				local sheetdata = findXmlElement(element, { 'sheetdata' }) -- use first sheetdata element
+				if element.attrs.name == 'npc_spells' and sheetdata then xmlScriptSearch(sheetdata) end
 			end
 		end
 	end
@@ -303,86 +295,133 @@ local function matchRelationshipScripts(templates)
 	end
 end
 
--- When supplied with a lua-xmlparser table for the <script> element,
--- this function adds any functions from it into a supplied table.
-local function getScriptFromXml(output, packagePath, parent, script)
-	local fns = {}
-	if script.attrs.file then
-		if not findGlobals(fns, packagePath, script.attrs.file) then
-			findAltScriptLocation(fns, packagePath, script.attrs.file)
-		end
-	elseif script.children[1].text then
-		getFnsFromLuaInXml(fns, script.children[1].text)
-	end
-	output[parent.attrs.name] = { ['functions'] = fns }
-end
+-- Finds template definitions in supplied table of XML files.
+-- If found, calls findTemplateScript to extract a list of globals.
+local function findTemplateRelationships(templates, packagePath, xmlFiles)
 
-local function addTemplateFunctions(packageDefinition, templateDefintion)
-	if packageDefinition and templateDefintion then
-		for fn, _ in pairs(templateDefintion['functions']) do
-			packageDefinition['functions'][fn] = true
-		end
-	end
-end
-
-local function xmlScriptSearch(packageDefinitions, packagePath, sheetdata, templates)
-	for _, element in ipairs(sheetdata.children) do
-		local script = findXmlElement(element, { 'script' })
+	-- When supplied with a lua-xmlparser table for the <script> element of a template,
+	-- this function adds any functions from it into a supplied table.
+	local function findTemplateScript(templates, packagePath, parent, element)
+		local script = findXmlElement(parent, { 'script' })
 		if script then
-			getScriptFromXml(packageDefinitions, packagePath, element, script)
-			addTemplateFunctions(packageDefinitions[element.attrs.name], templates[element.tag])
-		end
-	end
-end
-
--- Searches provided element for lua script definition and adds to provided table
--- If file search within package is unsuccessful, it calls findAltScriptLocation to search all rulesets
-local function getWindowclassScript(packageDefinitions, packagePath, element)
-	local script = findXmlElement(element, { 'script' })
-	if script then
-		local fns = {}
-		if script.attrs.file then
-			if not findGlobals(fns, packagePath, script.attrs.file) then
-				findAltScriptLocation(fns, packagePath, script.attrs.file)
+			local templateFunctions = {}
+			if script.attrs.file then
+				if not findGlobals(templateFunctions, packagePath, script.attrs.file) then
+					findAltScriptLocation(templateFunctions, packagePath, script.attrs.file)
+				end
+			elseif script.children[1].text then
+				getFnsFromLuaInXml(templateFunctions, script.children[1].text)
 			end
-		elseif script.children[1].text then
-			getFnsFromLuaInXml(fns, script.children[1].text)
+			templates[element.attrs.name] = { ['inherit'] = parent.tag, ['functions'] = templateFunctions }
 		end
-		packageDefinitions[element.attrs.name] = fns
 	end
-end
 
--- Searches a provided table of XML files for script definitions.
--- If element is windowclass, call getWindowclassScript.
--- If element is not a template, call xmlScriptSearch
-local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, packagePath)
-	for _, xmlPath in pairs(xmlFiles) do -- iterate through provided files
-		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' }) -- use first root element
+	for _, xmlPath in pairs(xmlFiles) do
+		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
 		for _, element in ipairs(root.children) do
-			if element.tag == 'windowclass' then -- iterate through each windowclass
-				getWindowclassScript(packageDefinitions, packagePath, element)
-				local sheetdata = findXmlElement(element, { 'sheetdata' }) -- use first sheetdata element
-				if element.attrs.name == 'npc_spells' and sheetdata then xmlScriptSearch(packageDefinitions, packagePath, sheetdata, templates) end
+			if element.tag == 'template' then
+				for _, template in ipairs(element.children) do findTemplateScript(templates, packagePath, template, element) end
 			end
 		end
 	end
 end
 
--- Compiles list of of scripts defined in supplied XML file.
--- Returns table of script file paths keyed to the script name.
-local function findHighLevelScripts(baseXmlFile)
+-- Search through a supplied fantasygrounds xml file to find other defined xml files.
+local function findXmls(baseXmlFile, path)
+
+	-- Opens a file and returns the contents as a string
+	local function loadFile(file)
+		local fhandle = io.open(file, 'r')
+		local string
+
+		if fhandle then
+			string = fhandle:read('*a')
+			fhandle:close()
+		end
+
+		return string
+	end
+
 	local data = loadFile(baseXmlFile)
 
-	local scripts = {}
-	for line in string.gmatch(data, '[^\r\n]+') do
-		if string.match(line, '<script.+/>') and not string.match(line, '<!--.*<script.+/>.*-->') then
+	local concatPath = table.concat(path)
+
+	local xmlFiles = {}
+	for line in data:gmatch('[^\r\n]+') do
+		if line:match('<includefile.+/>') and not line:match('<!--.*<includefile.+/>.*-->') then
 			local sansRuleset = line:gsub('ruleset=".-"%s+', '')
-			local ScriptName, filePath = sansRuleset:match('<script%s+name="(.+)"%s+file="(.+)"%s*/>')
-			if ScriptName then scripts[ScriptName] = filePath end
+			local filePath = sansRuleset:match('<includefile%s+source="(.+)"%s*/>') or ''
+			local fileName = filePath:match('.+/(.-).xml') or filePath:match('(.-).xml')
+			if fileName then xmlFiles[fileName] = concatPath .. '/' .. filePath end
 		end
 	end
 
-	return scripts
+	return xmlFiles
+end
+
+-- Determine best package name
+-- Returns as a lowercase string
+local function getPackageName(baseXmlFile, packageName)
+
+	-- Reads supplied XML file to find name and author definitions.
+	-- Returns a simplified string to identify the extension
+	local function getSimpleName(baseXmlFile)
+
+		-- Trims package name to prevent issues with luacheckrc
+		local function simplifyText(text)
+			text = text:gsub('.+:', '') -- remove prefix
+			text = text:gsub('%(.+%)', '') -- remove parenthetical
+			text = text:gsub('%W', '') -- remove non alphanumeric
+			return text
+		end
+
+		local altName = { '' }
+		local xmlProperties = findXmlElement(findXmlElement(parseXmlFile(baseXmlFile), { 'root' }), { 'properties' })
+		if xmlProperties then
+			for _, element in ipairs(xmlProperties.children) do
+				if element.tag == 'name' or element.tag == 'author' then
+					table.insert(altName, simplifyText(element.children[1]['text']))
+				end
+			end
+		end
+
+		table.sort(altName)
+
+		return table.concat(altName)
+	end
+	local shortPackageName = getSimpleName(baseXmlFile)
+
+	if shortPackageName == '' then shortPackageName = packageName end
+
+	-- prepend 'def' if 1st character isn't a-z
+	if string.sub(shortPackageName, 1, 1):match('%A') then shortPackageName = 'def' .. shortPackageName end
+
+	return shortPackageName:lower()
+end
+
+-- Searches for file by name in supplied directory
+-- Returns string in format of 'original_path/file_result'
+local function findBaseXml(path, searchName)
+	local concatPath = table.concat(path)
+	for file in lfs.dir(concatPath) do
+		local filePath = concatPath .. '/' .. file
+		local fileType = lfs.attributes(filePath, 'mode')
+		if fileType == 'file' and string.find(file, searchName) then return filePath end
+	end
+end
+
+-- Searches for directories in supplied path
+-- Adds them to supplied table 'list' and sorts the table
+local function findAllPackages(list, path)
+	lfs.mkdir(path) -- if not found, create path to avoid errors
+
+	for file in lfs.dir(path) do
+		if lfs.attributes(path .. '/' .. file, 'mode') == 'directory' then
+			if file ~= '.' and file ~= '..' then table.insert(list, file) end
+		end
+	end
+
+	table.sort(list)
 end
 
 --
@@ -411,8 +450,7 @@ for packageTypeName, packageTypeData in pairs(packages) do
 		matchRelationshipScripts(templates)
 
 		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath)
-		if packageTypeData['definitions'][shortPackageName] then
-			print_table(packageTypeData['definitions'][shortPackageName])
-		end
+
+		writeDefinitionsToFile(packageTypeData['definitions'], shortPackageName)
 	end
 end
