@@ -186,7 +186,9 @@ local function getAltPackageName(baseXmlFile)
 	local xmlProperties = findXmlElement(xmlRoot, { 'properties' })
 	if xmlProperties then
 		for _, element in ipairs(xmlProperties.children) do
-			if element.tag == 'name' or element.tag == 'author' then table.insert(altName, trimPackageName(element.children[1]['text'])) end
+			if element.tag == 'name' or element.tag == 'author' then
+				table.insert(altName, trimPackageName(element.children[1]['text']))
+			end
 		end
 	end
 
@@ -261,7 +263,9 @@ local function findTemplateRelationships(templates, packagePath, xmlFiles)
 		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
 		for _, element in ipairs(root.children) do
 			if element.tag == 'template' then
-				for _, template in ipairs(element.children) do getTemplateScriptFromXml(templates, packagePath, template, element) end
+				for _, template in ipairs(element.children) do
+					getTemplateScriptFromXml(templates, packagePath, template, element)
+				end
 			end
 		end
 	end
@@ -306,7 +310,7 @@ local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, pac
 	for _, xmlPath in pairs(xmlFiles) do
 		local root = findXmlElement(parseXmlFile(xmlPath), { 'root' })
 		for _, element in ipairs(root.children) do
-			if element.tag ~= 'windowclass' then
+			if element.tag == 'windowclass' then -- save windowclass scripts
 				local script = findXmlElement(element, { 'script' })
 				if script then
 					if script.attrs.file then
@@ -315,7 +319,7 @@ local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, pac
 						getFnsFromLuaInXml(packageDefinitions, script.children[1].text)
 					end
 				end
-			elseif element.tag ~= 'template' then
+			elseif element.tag ~= 'template' then -- ignore templates and search through rest of file hierarchy recursively
 				local sheetdata = findXmlElement(element, { 'sheetdata' })
 				if sheetdata then recursiveXmlSearch(packageDefinitions, packagePath, sheetdata, templates) end
 			end
@@ -323,6 +327,8 @@ local function findInterfaceScripts(packageDefinitions, templates, xmlFiles, pac
 	end
 end
 
+-- Compiles list of of scripts defined in supplied XML file.
+-- Returns table of script file paths keyed to the script name.
 local function findHighLevelScripts(baseXmlFile)
 	local data = loadFile(baseXmlFile)
 
@@ -330,8 +336,8 @@ local function findHighLevelScripts(baseXmlFile)
 	for line in string.gmatch(data, '[^\r\n]+') do
 		if string.match(line, '<script.+/>') and not string.match(line, '<!--.*<script.+/>.*-->') then
 			local sansRuleset = line:gsub('ruleset=".-"%s+', '')
-			local fileName, filePath = sansRuleset:match('<script%s+name="(.+)"%s+file="(.+)"%s*/>')
-			if fileName then scripts[fileName] = filePath end
+			local ScriptName, filePath = sansRuleset:match('<script%s+name="(.+)"%s+file="(.+)"%s*/>')
+			if ScriptName then scripts[ScriptName] = filePath end
 		end
 	end
 
@@ -364,7 +370,6 @@ for packageTypeName, packageTypeData in pairs(packages) do
 
 		findTemplateRelationships(templates, packagePath, interfaceXmlFiles)
 		matchRelationshipScripts(templates)
-		print_table(templates)
 
 		findInterfaceScripts(packageTypeData['definitions'][shortPackageName], templates, interfaceXmlFiles, packagePath)
 		print_table(packageTypeData['definitions'][shortPackageName])
