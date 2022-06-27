@@ -53,7 +53,7 @@ local _LuaEnum = {}
 local _Frames = dofile(prefix .. 'Frames.lua')
 local _FramesXML = dofile(prefix .. 'FrameXML.lua')
 local _GlobalAPI = dofile(prefix .. 'GlobalAPI.lua')
-loadfileToEnv(prefix .. 'GlobalStrings.lua', _GlobalStrings)
+loadfileToEnv(prefix .. 'GlobalStrings/enUS.lua', _GlobalStrings)
 loadfileToEnv(prefix .. 'LuaEnum.lua', _LuaEnum)
 
 local Frames, LodFrames = _Frames[1], _Frames[2]
