@@ -25,6 +25,7 @@ local MiscCustom = {
 local function loadfileToEnv(path, env)
 	if _ENV then
 		-- Lua 5.2
+		--- @diagnostic disable-next-line: redundant-parameter
 		local func, err = loadfile(path, 'bt', env)
 		assert(func, err)
 		func()
