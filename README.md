@@ -37,7 +37,7 @@ jobs:
 * `target-path`: Path to generated `.luacheckrc`. Defaults to `.luacheckrc`.
 * `header-path`: Path to `.luacheckrc` header, where you can put your own settings in. Defaults to `.luacheckrc_header`.
 * `ui-source-branch`: Branch of Gethe/wow-ui-source to checkout. Defaults to `live`.
-* `header-path`: Branch of Ketho/BlizzardInterfaceResources to checkout. Defaults to `mainline`.
+* `interface-resources-branch`: Branch of Ketho/BlizzardInterfaceResources to checkout. Defaults to `mainline`.
 
 ## License
 The Unlicense
