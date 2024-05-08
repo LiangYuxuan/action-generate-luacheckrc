@@ -14,7 +14,7 @@ local function findAllFiles(path)
         if fileType == 'file' and string.find(file, '^[^.].+%.lua') then
             table.insert(result, file)
         elseif fileType == 'directory' then
-            if file ~= '.' and file ~= '..' and file ~= 'Blizzard_Deprecated' then
+            if file ~= '.' and file ~= '..' and string.match(file, '^Blizzard_Deprecated') then
                 local subResult = findAllFiles(path .. '/' .. file)
                 for _, subFile in ipairs(subResult) do
                     table.insert(result, file .. '/' .. subFile)
