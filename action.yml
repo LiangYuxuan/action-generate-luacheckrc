@@ -37,7 +37,7 @@ runs:
         ref: ${{ inputs.interface-resources-branch }}
 
     - name: Install Lua 5.1.5
-      uses: leafo/gh-actions-lua@v10.0.0
+      uses: leafo/gh-actions-lua@v11.0.0
       with:
         luaVersion: "5.1.5"
 
