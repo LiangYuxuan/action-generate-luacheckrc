@@ -21,7 +21,7 @@ runs:
   using: "composite"
   steps:
     - name: Clone Gethe/wow-ui-source
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: Gethe/wow-ui-source
         path: .wow/wow-ui-source
@@ -29,7 +29,7 @@ runs:
         ref: ${{ inputs.ui-source-branch }}
 
     - name: Clone Ketho/BlizzardInterfaceResources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: Ketho/BlizzardInterfaceResources
         path: .wow/BlizzardInterfaceResources
