@@ -16,7 +16,7 @@ inputs:
   interface-resources-branch:
     description: 'Branch of Ketho/BlizzardInterfaceResources to checkout'
     required: false
-    default: 'mainline'
+    default: 'live'
 runs:
   using: "composite"
   steps:
